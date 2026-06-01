@@ -3,13 +3,22 @@ spring:
     name: backend-unavaliability
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SUPABASE_DB_USER}
+    password: ${SUPABASE_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: ${SPRING_DATASOURCE_POOL_SIZE:10}
+      maximum-pool-size: ${SPRING_DATASOURCE_POOL_SIZE}
       auto-commit: true
+
+  flyway:
+    enabled: true
+    schemas: ${SUPABASE_SCHEMA}
+    default-schema: ${SUPABASE_SCHEMA}
+    create-schemas: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
   jpa:
     hibernate:
@@ -17,12 +26,28 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${SUPABASE_SCHEMA}
         format_sql: true
         jdbc:
           lob:
             non_contextual_creation: true
-    show-sql: ${JPA_SHOW_SQL:false}
+    show-sql: false
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: 8080
+  forward-headers-strategy: framework
+
+app:
+  jwt:
+    secret: ${SESSION_SECRET}
+    expiration-ms: 604800000
+  cors:
+    allowed-origins: http://localhost:3000
+  security:
+    require-https: false
+    hsts-max-age-seconds: 31536000
+    lockout:
+      threshold: 5
+      minutes: 15
+  setores:
+    file: setores.json
