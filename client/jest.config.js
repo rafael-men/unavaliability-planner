@@ -8,9 +8,6 @@ module.exports = {
   },
   collectCoverageFrom: [
     'app/lib/**/*.ts',
-    'app/api/**/*.ts',
-    '!app/lib/database.ts',
-    '!app/lib/session.ts',
   ],
   setupFiles: ['<rootDir>/test/setup.ts'],
   transform: {

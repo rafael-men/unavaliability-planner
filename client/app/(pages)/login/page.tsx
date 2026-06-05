@@ -44,9 +44,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-5">
       <div className="w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-2xl animate-fade-up">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4 w-16 h-16 rounded-2xl bg-[var(--accent)]/10 border border-[var(--accent)]/30">
-            <CalendarCheck size={32} className="text-[var(--accent)]" />
-          </div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-[var(--accent)] bg-clip-text text-transparent">
             Indisponibilidade
           </h1>

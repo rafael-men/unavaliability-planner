@@ -1,8 +1,4 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '../../../lib/session';
+import { NextRequest } from 'next/server';
+import { proxy } from '../../../lib/backend';
 
-export async function POST() {
-  const session = await getSession();
-  session.destroy();
-  return NextResponse.json({ success: true });
-}
+export const POST = (req: NextRequest) => proxy(req);

@@ -1,6 +1,4 @@
-import { NextResponse } from 'next/server';
-import { loadSetores } from '../../lib/setores';
+import { NextRequest } from 'next/server';
+import { proxy } from '../../lib/backend';
 
-export async function GET() {
-  return NextResponse.json(loadSetores());
-}
+export const GET = (req: NextRequest) => proxy(req);

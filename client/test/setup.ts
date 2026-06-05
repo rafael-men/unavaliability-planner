@@ -1,3 +1,3 @@
-process.env.SUPABASE_URL = 'https://test.supabase.co';
-process.env.SUPABASE_KEY = 'test-key';
-process.env.SESSION_SECRET = 'test-secret-with-more-than-32-bytes-aaaaaa';
+// Setup de testes. A lógica de API/banco agora vive no backend Java;
+// os testes do client cobrem apenas utilitários de UI (ex.: client-config).
+export {};

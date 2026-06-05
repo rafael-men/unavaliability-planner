@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { proxy } from '../../lib/backend';
 
-export async function GET() {
-  return NextResponse.json({ status: 'ok' });
-}
+export const GET = (req: NextRequest) => proxy(req);

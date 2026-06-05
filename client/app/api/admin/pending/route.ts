@@ -1,12 +1,4 @@
-import { NextResponse } from 'next/server';
-import { queries } from '../../../lib/database';
-import { requireAuth, requireAdminOnly } from '../../../lib/auth';
+import { NextRequest } from 'next/server';
+import { proxy } from '../../../lib/backend';
 
-export async function GET() {
-  const { user, response } = await requireAuth();
-  if (response) return response;
-  const aErr = requireAdminOnly(user!);
-  if (aErr) return aErr;
-  const pending = await queries.getPendingUsers('pending');
-  return NextResponse.json(pending);
-}
+export const GET = (req: NextRequest) => proxy(req);

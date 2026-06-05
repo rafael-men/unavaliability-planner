@@ -1,10 +1,4 @@
-import { NextResponse } from 'next/server';
-import { queries } from '../../lib/database';
-import { requireAuth } from '../../lib/auth';
+import { NextRequest } from 'next/server';
+import { proxy } from '../../lib/backend';
 
-export async function GET() {
-  const { response } = await requireAuth();
-  if (response) return response;
-  const members = await queries.getAllMembers();
-  return NextResponse.json(members);
-}
+export const GET = (req: NextRequest) => proxy(req);

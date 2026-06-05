@@ -1,5 +1,23 @@
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+
+const TOKEN_KEY = 'auth_token';
+
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) window.localStorage.setItem(TOKEN_KEY, token);
+  else window.localStorage.removeItem(TOKEN_KEY);
+}
+
+export function clearToken() {
+  setToken(null);
+}
+
 const cache: Record<string, any> = {};
 const cacheTs: Record<string, number> = {};
 const CACHE_TTL = 15000;
@@ -26,9 +44,13 @@ async function request<T = any>(method: Method, url: string, body: any = null, r
     return JSON.parse(JSON.stringify(cache[url]));
   }
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const opts: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     credentials: 'same-origin',
   };
   if (body) opts.body = JSON.stringify(body);
@@ -41,6 +63,7 @@ async function request<T = any>(method: Method, url: string, body: any = null, r
     }
     const data = await res.json();
     if (res.status === 401) {
+      clearToken();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
         window.location.href = '/login';
       }
@@ -69,9 +92,20 @@ async function request<T = any>(method: Method, url: string, body: any = null, r
 
 export const API = {
   clearCache,
-  login: (email: string, password: string) => request('POST', '/api/auth/login', { email, password }),
+  login: async (email: string, password: string) => {
+    const data = await request<any>('POST', '/api/auth/login', { email, password });
+    if (data?.token) setToken(data.token);
+    return data;
+  },
   register: (data: any) => request('POST', '/api/auth/register', data),
-  logout: () => { clearCache(); return request('POST', '/api/auth/logout'); },
+  logout: async () => {
+    clearCache();
+    try {
+      await request('POST', '/api/auth/logout');
+    } finally {
+      clearToken();
+    }
+  },
   me: () => request('GET', '/api/auth/me'),
 
   getSetores: () => request<string[]>('GET', '/api/setores'),
