@@ -30,11 +30,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    /** Origens permitidas para CORS (allow-list). Ex.: https://app.exemplo.com,https://admin.exemplo.com */
     private final List<String> allowedOrigins;
-    /** Quando true, exige HTTPS em todas as requisições (redireciona/recusa HTTP). */
     private final boolean requireHttps;
-    /** max-age do HSTS em segundos (padrão 1 ano). */
     private final long hstsMaxAge;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -48,7 +45,7 @@ public class SecurityConfig {
         this.hstsMaxAge = hstsMaxAge;
     }
 
-    /** bcrypt (custo 10) — compatível com os hashes gerados pelo bcryptjs do app original. */
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
@@ -62,7 +59,6 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Allow-list explícita — NÃO usa "*" para poder permitir credenciais com segurança.
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
@@ -82,28 +78,24 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Rotas públicas (espelham as do Next.js sem requireAuth).
                         .requestMatchers("/api/auth/login", "/api/auth/register",
                                 "/api/setores", "/api/health").permitAll()
+                        .requestMatchers("/api/admin/**")
+                        .hasAnyRole("ADMIN_MASTER", "ADMIN_EDITOR", "ADMIN_LEITOR")
                         .anyRequest().authenticated())
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .headers(headers -> headers
-                        // X-Content-Type-Options: nosniff
                         .contentTypeOptions(Customizer.withDefaults())
-                        // X-Frame-Options: DENY (anti-clickjacking)
                         .frameOptions(frame -> frame.deny())
-                        // Referrer-Policy
                         .referrerPolicy(rp -> rp.policy(
                                 ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                        // HSTS — só faz sentido sob HTTPS.
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(hstsMaxAge)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         if (requireHttps) {
-            // Exige canal seguro em produção (atrás de proxy, ver forward-headers-strategy).
             http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
         }
 

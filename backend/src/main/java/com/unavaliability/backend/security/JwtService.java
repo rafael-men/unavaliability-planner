@@ -19,10 +19,23 @@ public class JwtService {
     private final SecretKey key;
     private final long expirationMs;
 
+    private static final int MIN_SECRET_BYTES = 32;
+
     public JwtService(
-            @Value("${app.jwt.secret:macfor-indisponibilidade-secret-2024-mais-32-bytes-aaa}") String secret,
+            @Value("${app.jwt.secret:}") String secret,
             @Value("${app.jwt.expiration-ms:604800000}") long expirationMs) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT secret ausente. Defina a variável de ambiente SESSION_SECRET "
+                            + "(>= " + MIN_SECRET_BYTES + " bytes).");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT secret fraco: precisa de pelo menos " + MIN_SECRET_BYTES
+                            + " bytes (256 bits) para HS256. Atual: " + bytes.length + " bytes.");
+        }
+        this.key = Keys.hmacShaKeyFor(bytes);
         this.expirationMs = expirationMs;
     }
 

@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.UserDtos.AssignSetorRequest;
 import com.unavaliability.backend.dto.UserDtos.ChangeRoleRequest;
 import com.unavaliability.backend.dto.UserDtos.CreateUserRequest;
@@ -41,7 +42,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/users/create")
-    public Map<String, Object> create(@RequestBody CreateUserRequest req) {
+    public Map<String, Object> create(@Valid @RequestBody CreateUserRequest req) {
         userAdminService.createUser(currentUser.require(), req);
         return Map.of("success", true, "message", "Usuário criado e aprovado com sucesso.");
     }
@@ -53,7 +54,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/users/{id}/assign-setor")
-    public Map<String, Object> assignSetor(@PathVariable Long id, @RequestBody AssignSetorRequest req) {
+    public Map<String, Object> assignSetor(@PathVariable Long id, @Valid @RequestBody AssignSetorRequest req) {
         userAdminService.assignSetor(currentUser.require(), id, req);
         return Map.of("success", true);
     }
@@ -71,7 +72,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/change-role/{id}")
-    public Map<String, Object> changeRole(@PathVariable Long id, @RequestBody ChangeRoleRequest req) {
+    public Map<String, Object> changeRole(@PathVariable Long id, @Valid @RequestBody ChangeRoleRequest req) {
         userAdminService.changeRole(currentUser.require(), id, req);
         return Map.of("success", true);
     }

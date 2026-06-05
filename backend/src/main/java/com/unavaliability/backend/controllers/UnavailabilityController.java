@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.UnavailabilityDtos.CreateRequest;
 import com.unavaliability.backend.dto.UnavailabilityDtos.ImpactResponse;
 import com.unavaliability.backend.dto.UnavailabilityDtos.ListResponse;
@@ -34,7 +35,7 @@ public class UnavailabilityController {
     }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody CreateRequest req) {
+    public Map<String, Object> create(@Valid @RequestBody CreateRequest req) {
         service.create(currentUser.require(), req, LocalDate.now());
         return Map.of("success", true, "message", "Solicitação de indisponibilidade enviada com sucesso.");
     }
@@ -66,7 +67,7 @@ public class UnavailabilityController {
     }
 
     @PatchMapping("/{id}")
-    public Map<String, Object> update(@PathVariable Long id, @RequestBody UpdateRequest req) {
+    public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody UpdateRequest req) {
         service.update(currentUser.require(), id, req, LocalDate.now());
         return Map.of("success", true);
     }

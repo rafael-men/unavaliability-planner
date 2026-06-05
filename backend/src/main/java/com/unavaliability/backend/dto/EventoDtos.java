@@ -1,6 +1,7 @@
 package com.unavaliability.backend.dto;
 
 import com.unavaliability.backend.models.Evento;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -12,11 +13,11 @@ public final class EventoDtos {
     }
 
     public record EventoRequest(
-            String nome,
-            String descricao,
+            @Size(max = 200) String nome,
+            @Size(max = 2000) String descricao,
             LocalDate data_inicio,
             LocalDate data_fim,
-            List<Long> cliente_ids) {
+            @Size(max = 100) List<Long> cliente_ids) {
     }
 
     public record ClienteRef(Long id, String nome) {

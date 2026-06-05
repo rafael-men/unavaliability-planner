@@ -1,6 +1,7 @@
 package com.unavaliability.backend.dto;
 
 import com.unavaliability.backend.models.Unavailability;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -13,8 +14,8 @@ public final class UnavailabilityDtos {
     }
 
     public record CreateRequest(
-            String unavailability_type,
-            String department,
+            @Size(max = 30) String unavailability_type,
+            @Size(max = 100) String department,
             LocalDate start_date,
             LocalDate end_date,
             Integer total_days) {
@@ -23,8 +24,8 @@ public final class UnavailabilityDtos {
     public record UpdateRequest(
             LocalDate start_date,
             LocalDate end_date,
-            String unavailability_type,
-            String department) {
+            @Size(max = 30) String unavailability_type,
+            @Size(max = 100) String department) {
     }
 
     public record EventConflict(

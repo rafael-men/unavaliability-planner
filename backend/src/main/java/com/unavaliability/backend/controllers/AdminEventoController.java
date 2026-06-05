@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.EventoDtos.EventoRequest;
 import com.unavaliability.backend.dto.EventoDtos.EventoView;
 import com.unavaliability.backend.security.CurrentUserProvider;
@@ -36,13 +37,13 @@ public class AdminEventoController {
     }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody EventoRequest req) {
+    public Map<String, Object> create(@Valid @RequestBody EventoRequest req) {
         EventoView e = eventoService.create(currentUser.require(), req);
         return Map.of("success", true, "evento", e);
     }
 
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable Long id, @RequestBody EventoRequest req) {
+    public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody EventoRequest req) {
         EventoView e = eventoService.update(currentUser.require(), id, req);
         return Map.of("success", true, "evento", e);
     }

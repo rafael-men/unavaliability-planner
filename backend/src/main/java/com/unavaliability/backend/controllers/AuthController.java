@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.AuthDtos.LoginRequest;
 import com.unavaliability.backend.dto.AuthDtos.LoginResponse;
 import com.unavaliability.backend.dto.AuthDtos.RegisterRequest;
@@ -29,13 +30,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody LoginRequest req, HttpServletRequest http) {
+    public LoginResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         authService.checkLoginRate(clientIp(http), System.currentTimeMillis());
         return authService.login(req);
     }
 
     @PostMapping("/register")
-    public Map<String, Object> register(@RequestBody RegisterRequest req) {
+    public Map<String, Object> register(@Valid @RequestBody RegisterRequest req) {
         authService.register(req);
         return Map.of("success", true,
                 "message", "Cadastro realizado! Aguarde aprovação de um administrador.");

@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.security.CurrentUserProvider;
 import com.unavaliability.backend.service.SetorService;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,13 +31,13 @@ public class AdminSetorController {
     }
 
     @PostMapping
-    public Map<String, Object> add(@RequestBody SetorRequest req) {
+    public Map<String, Object> add(@Valid @RequestBody SetorRequest req) {
         List<String> setores = setorService.add(currentUser.require(), req == null ? null : req.name());
         return Map.of("success", true, "setores", setores);
     }
 
     @PutMapping("/{index}")
-    public Map<String, Object> update(@PathVariable int index, @RequestBody SetorRequest req) {
+    public Map<String, Object> update(@PathVariable int index, @Valid @RequestBody SetorRequest req) {
         List<String> setores = setorService.update(currentUser.require(), index, req == null ? null : req.name());
         return Map.of("success", true, "setores", setores);
     }

@@ -2,6 +2,17 @@ type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 
 const TOKEN_KEY = 'auth_token';
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; 
+
+function writeCookie(token: string | null) {
+  if (typeof document === 'undefined') return;
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  if (token) {
+    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Strict${secure}`;
+  } else {
+    document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Strict${secure}`;
+  }
+}
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -12,10 +23,19 @@ export function setToken(token: string | null) {
   if (typeof window === 'undefined') return;
   if (token) window.localStorage.setItem(TOKEN_KEY, token);
   else window.localStorage.removeItem(TOKEN_KEY);
+  writeCookie(token);
 }
+
+// Chaves de estado por-usuário em localStorage que devem ser limpas no logout
+// para não vazar entre contas no mesmo navegador.
+const PER_USER_KEYS = ['notif:seen-ids'];
 
 export function clearToken() {
   setToken(null);
+  if (typeof window !== 'undefined') {
+    PER_USER_KEYS.forEach((k) => window.localStorage.removeItem(k));
+  }
+  clearCache();
 }
 
 const cache: Record<string, any> = {};
@@ -93,6 +113,9 @@ async function request<T = any>(method: Method, url: string, body: any = null, r
 export const API = {
   clearCache,
   login: async (email: string, password: string) => {
+    // Limpa cache ANTES de logar para não servir dados de um usuário anterior
+    // (o cache de 15s é global e não tem o usuário na chave).
+    clearCache();
     const data = await request<any>('POST', '/api/auth/login', { email, password });
     if (data?.token) setToken(data.token);
     return data;

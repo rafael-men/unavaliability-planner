@@ -1,5 +1,6 @@
 package com.unavaliability.backend.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +27,7 @@ public class User {
     private String email;
     @Column
     private String nome;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "passw")
     private String passw;
     @Column

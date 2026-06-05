@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.ClienteDtos.AssignUserRequest;
 import com.unavaliability.backend.dto.ClienteDtos.ClienteRequest;
 import com.unavaliability.backend.models.Cliente;
@@ -35,13 +36,13 @@ public class AdminClienteController {
     }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody ClienteRequest req) {
+    public Map<String, Object> create(@Valid @RequestBody ClienteRequest req) {
         Cliente c = clienteService.create(currentUser.require(), req);
         return Map.of("success", true, "cliente", c);
     }
 
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable Long id, @RequestBody ClienteRequest req) {
+    public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody ClienteRequest req) {
         Cliente c = clienteService.update(currentUser.require(), id, req);
         return Map.of("success", true, "cliente", c);
     }
@@ -53,13 +54,13 @@ public class AdminClienteController {
     }
 
     @PostMapping("/{id}/assign")
-    public Map<String, Object> assign(@PathVariable Long id, @RequestBody AssignUserRequest req) {
+    public Map<String, Object> assign(@PathVariable Long id, @Valid @RequestBody AssignUserRequest req) {
         clienteService.assign(currentUser.require(), id, req);
         return Map.of("success", true);
     }
 
     @DeleteMapping("/{id}/assign")
-    public Map<String, Object> unassign(@PathVariable Long id, @RequestBody AssignUserRequest req) {
+    public Map<String, Object> unassign(@PathVariable Long id, @Valid @RequestBody AssignUserRequest req) {
         clienteService.unassign(currentUser.require(), id, req == null ? null : req.user_id());
         return Map.of("success", true);
     }

@@ -1,5 +1,6 @@
 package com.unavaliability.backend.controllers;
 
+import jakarta.validation.Valid;
 import com.unavaliability.backend.dto.MemberDtos.MemberRequest;
 import com.unavaliability.backend.models.Member;
 import com.unavaliability.backend.security.CurrentUserProvider;
@@ -36,13 +37,13 @@ public class AdminMemberController {
     }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody MemberRequest req) {
+    public Map<String, Object> create(@Valid @RequestBody MemberRequest req) {
         Member m = memberService.create(currentUser.require(), req);
         return Map.of("success", true, "member", m);
     }
 
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable Long id, @RequestBody MemberRequest req) {
+    public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody MemberRequest req) {
         Member m = memberService.update(currentUser.require(), id, req);
         return Map.of("success", true, "member", m);
     }
