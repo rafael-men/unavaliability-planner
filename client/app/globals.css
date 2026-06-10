@@ -37,7 +37,10 @@
   --color-text-muted: var(--text-muted);
   --color-text-dim: var(--text-dim);
   --color-accent: var(--accent);
-  --font-sans: "Outfit", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Roboto Slab", system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
 }
 

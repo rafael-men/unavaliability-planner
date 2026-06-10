@@ -72,6 +72,13 @@ public class User {
         this.nome = nome;
     }
 
+
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "full_name", access =
+            com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    public String getFullName() {
+        return nome;
+    }
+
     public String getPassw() {
         return passw;
     }

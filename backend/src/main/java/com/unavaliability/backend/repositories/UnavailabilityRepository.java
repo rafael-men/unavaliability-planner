@@ -17,4 +17,11 @@ public interface UnavailabilityRepository extends JpaRepository<Unavailability, 
             String status, LocalDate startDate, LocalDate endDate);
     List<Unavailability> findByUserIdAndStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             Long userId, String status, LocalDate yearEnd, LocalDate yearStart);
+
+
+    List<Unavailability> findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+            String status, LocalDate ate, LocalDate de);
+
+    List<Unavailability> findByCreatedAtBetween(
+            java.time.OffsetDateTime de, java.time.OffsetDateTime ate);
 }

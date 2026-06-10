@@ -12,6 +12,10 @@ Aplicação web para controle de períodos de indisponibilidade de agenda (féri
 - **Calendário consolidado** — visão de indisponibilidades aprovadas, pendentes, eventos e conflitos.
 - **Notificações** — sineta na navbar com badge vermelho para novos cadastros e pedidos pendentes.
 - **Gestão de usuários, setores e membros** — admin master.
+- **Dashboard analítico** — dias de indisponibilidade por setor e por mês, taxa de aprovação, tempo médio de aprovação e ranking de conflitos por cliente.
+- **Forecast de capacidade** — projeção de quantas pessoas estarão indisponíveis por semana nas próximas N semanas.
+- **Exportação** — relatório de indisponibilidades e calendário em **CSV, Excel (XLSX) e PDF**.
+- **Documentação interativa da API** — Swagger UI (OpenAPI 3) com autenticação Bearer.
 
 ## Papéis
 
@@ -39,9 +43,11 @@ Browser → /api/...  (mesma origem, sem CORS)
 
 ## Stack
 
-**Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security) · JWT (jjwt) · Flyway · PostgreSQL (Supabase) · Maven
+**Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security) · JWT (jjwt) · Flyway · PostgreSQL (Supabase) · springdoc/OpenAPI (Swagger) · Apache POI (Excel) · OpenPDF · Maven
 
 **Front:** Next.js 16 (App Router) · React 19 · TypeScript · PrimeReact · Tailwind 4 · Lucide
+
+**Testes:** JUnit 5 + Mockito + AssertJ (backend) · Jest (utilitários de UI no front)
 
 ## Segurança
 
@@ -75,6 +81,8 @@ cd backend
 No primeiro boot o **Flyway** aplica as migrations em `src/main/resources/db/migration`:
 `V1` cria o schema e as tabelas; `V2` insere o admin master inicial.
 
+Com o backend no ar, a documentação interativa fica em **`http://localhost:8080/swagger-ui.html`** (OpenAPI JSON em `/v3/api-docs`). Use o botão **Authorize** com o token obtido em `/api/auth/login`.
+
 ### 2. Front (porta 3000)
 
 `client/.env.local` aponta para o backend (default já configurado):
@@ -106,21 +114,26 @@ backend/                         # API Java / Spring Boot
   src/main/java/com/unavaliability/backend/
     models/        # entidades JPA (User, Member, Cliente, Evento, Unavailability, junções)
     repositories/  # Spring Data JPA
-    service/       # regras de negócio + validação + permissões
-    controllers/   # REST controllers (espelham /api/**)
+    service/       # regras de negócio: Auth, Unavailability, Analytics, Export, etc.
+    controllers/   # REST controllers (espelham /api/**) + Analytics/Export/Health
+    dto/           # records de request/response (com Bean Validation)
     security/      # JWT, filtro, roles, UserDetails
-    config/        # SecurityConfig (CORS, headers, HTTPS)
+    config/        # SecurityConfig (CORS/headers/HTTPS) + OpenApiConfig (Swagger)
+    util/          # BusinessDays, TextUtils
     exception/     # ApiException + handler global
   src/main/resources/
     application.yml
     db/migration/  # V1__init.sql, V2__seed_admin_master.sql (Flyway)
+  src/test/java/   # JUnit 5 + Mockito (services e utils)
 
 client/                          # Front-end Next.js
   app/
     (pages)/       # UI: admin (users/setores/members/clientes/eventos), unavailability, login, register
+                   #   cada página grande tem _components/ com seus subcomponentes
     api/           # BFF: proxies que repassam /api/** ao backend Java
     components/    # Navbar, NotificationBell, UnavailForm, UnavailCalendar, etc.
-    lib/           # api-client (JWT), backend (proxy), client-config (UI utils)
+    lib/           # api-client (JWT), backend (proxy), client-config, ui-utils
+  middleware.ts    # proteção de rotas server-side (redireciona sem token)
   test/            # testes de utilitários de UI (Jest)
 ```
 
@@ -131,6 +144,26 @@ client/                          # Front-end Next.js
 - Sem sobreposição com pedidos próprios pendentes/aprovados.
 - Cota anual de dias resetada por ano civil.
 - `admin_master` pode aprovar a própria solicitação; demais não.
+
+## API — Analytics & Exportação
+
+Endpoints restritos a quem pode ver tudo (admins / sócio):
+
+| Método | Rota | Descrição |
+| ------ | ---- | --------- |
+| `GET` | `/api/analytics/dashboard?de=&ate=` | Dias por setor/mês, taxa de aprovação, tempo médio de aprovação, ranking de conflitos (sem datas: do início do ano até hoje). |
+| `GET` | `/api/analytics/forecast?semanas=8` | Projeção de pessoas indisponíveis por semana (1–26 semanas). |
+| `GET` | `/api/export/relatorio?formato=csv\|xlsx\|pdf` | Exporta o relatório de indisponibilidades. |
+| `GET` | `/api/export/calendario?formato=csv\|xlsx\|pdf` | Exporta o calendário de indisponibilidades ativas. |
+
+## Testes
+
+```bash
+cd backend && ./mvnw test    
+cd client && npm test        
+```
+
+Cobertura de backend inclui: cálculo de dias úteis, validação/regra de criação de indisponibilidade, permissões de papel, rate limit + lockout de login e parse de `report_to`. Os testes de serviço usam mocks dos repositórios (não exigem banco).
 
 ## Migrations
 
