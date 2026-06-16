@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
@@ -9,19 +9,21 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Building2, Plus, ChevronLeft, Pencil, X, Star, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '../../../components/Navbar';
+import { PageHeader } from '../../../components/PageHeader';
 import { withAuth } from '../../../components/withAuth';
 import { Card } from '../../../components/Card';
 import { Skeleton } from '../../../components/Skeleton';
 import { API } from '../../../lib/api-client';
-import { DEPT_COLORS, isMasterAdminRole } from '../../../lib/client-config';
+import { DEPT_COLORS, ROLES, isMasterAdminRole } from '../../../lib/client-config';
 import { useToast, useSetores } from '../../../providers';
 import { initials } from '../../../lib/ui-utils';
+import type { User } from '../../../lib/types';
 
 function AdminSetoresPage() {
   const router = useRouter();
   const toast = useToast();
   const { setores, refresh: refreshSetores } = useSetores();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [setorOpen, setSetorOpen] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -128,32 +130,37 @@ function AdminSetoresPage() {
     return <div className="min-h-screen"><Navbar /><div className="max-w-[1440px] mx-auto px-4 sm:px-9 py-8"><Skeleton rows={4} /></div></div>;
   }
 
-  const semSetor = users.filter((u) => u.role !== 'admin_master' && (!u.department || !setores.includes(u.department)));
-  const eligibleForAddToSetor = addToSetor ? users.filter((u) => u.role !== 'admin_master' && u.department !== addToSetor) : [];
+  const semSetor = useMemo(
+    () => users.filter((u) => u.role !== ROLES.ADMIN_MASTER && (!u.department || !setores.includes(u.department))),
+    [users, setores],
+  );
+  const eligibleForAddToSetor = useMemo(
+    () => (addToSetor ? users.filter((u) => u.role !== ROLES.ADMIN_MASTER && u.department !== addToSetor) : []),
+    [users, addToSetor],
+  );
 
   return (
     <div className="min-h-screen">
       <Navbar />
       <ConfirmDialog />
       <div className="max-w-[1440px] mx-auto px-4 sm:px-9 py-8">
-        <div className="flex justify-between items-start mb-7 flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Building2 size={28} className="text-[var(--accent)]" /> Gerenciar Setores
-            </h1>
-            <p className="text-[var(--text-muted)] text-sm mt-1">{setores.length} setores · {users.length} usuários</p>
-          </div>
-          <div className="flex gap-2">
-            <Button label="Novo Setor" icon={<Plus size={14} />} onClick={() => openModal(null)} size="small" />
-            <Button label="Voltar" icon={<ChevronLeft size={14} />} severity="secondary" outlined size="small" onClick={() => router.push('/unavailability')} />
-          </div>
-        </div>
+        <PageHeader
+          title="Gerenciar Setores"
+          icon={Building2}
+          description={`${setores.length} setores · ${users.length} usuários`}
+          actions={
+            <>
+              <Button label="Novo Setor" icon={<Plus size={14} />} onClick={() => openModal(null)} size="small" />
+              <Button label="Voltar" icon={<ChevronLeft size={14} />} severity="secondary" outlined size="small" onClick={() => router.push('/unavailability')} />
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {setores.map((setor, idx) => {
             const members = users.filter((u) => u.department === setor);
-            const lideres = members.filter((u) => u.role === 'lider');
-            const outros = members.filter((u) => u.role !== 'lider');
+            const lideres = members.filter((u) => u.role === ROLES.LIDER);
+            const outros = members.filter((u) => u.role !== ROLES.LIDER);
             const color = DEPT_COLORS[setor] || 'var(--accent)';
 
             return (

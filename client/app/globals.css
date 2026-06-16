@@ -1,16 +1,26 @@
 @import "tailwindcss";
 
+
 :root {
-  --background: #080a10;
-  --foreground: #e8eaf0;
-  --surface: #12151e;
-  --surface2: #181c28;
-  --card: #13161f;
-  --border: #1e2235;
-  --border-light: #2a2f45;
-  --text-muted: #7e839a;
-  --text-dim: #4a4f68;
-  --accent: #6c8ef2;
+ 
+  --background: #06141c;
+  --foreground: #eaf4f2;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface2: rgba(255, 255, 255, 0.10);
+  --card: rgba(16, 38, 46, 0.45);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-light: rgba(255, 255, 255, 0.20);
+
+  --text-muted: #9db4b6;
+  --text-dim: #6b8486;
+
+
+  --accent: #1fb8a6;
+
+
+  --grad-from: #0c3b3a;  
+  --grad-via: #0a2733;
+  --grad-to: #071a2b;   
 }
 
 [data-theme="light"] {
@@ -42,5 +52,27 @@
 
 body {
   font-family: var(--font-sans);
+  color: var(--foreground);
+  background:
+    radial-gradient(1200px 800px at 15% -10%, rgba(31, 184, 166, 0.18), transparent 60%),
+    radial-gradient(1000px 700px at 110% 10%, rgba(40, 120, 160, 0.16), transparent 55%),
+    linear-gradient(150deg, var(--grad-from) 0%, var(--grad-via) 45%, var(--grad-to) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+.glass,
+[data-theme="dark"] .glass {
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+select {
+  color: var(--foreground);
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: #0d2530;
+  color: var(--foreground);
 }
 

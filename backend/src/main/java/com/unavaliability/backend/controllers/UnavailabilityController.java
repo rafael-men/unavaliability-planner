@@ -89,4 +89,20 @@ public class UnavailabilityController {
         service.reject(currentUser.require(), id);
         return Map.of("success", true);
     }
+
+
+    @PostMapping("/{id}/cancel")
+    public Map<String, Object> cancel(@PathVariable Long id, @RequestBody(required = false) CancelRequest req) {
+        java.time.LocalDate newEnd = req != null ? req.new_end_date() : null;
+        service.cancelOrShorten(currentUser.require(), id, newEnd, LocalDate.now());
+        return Map.of("success", true);
+    }
+
+    public record CancelRequest(java.time.LocalDate new_end_date) {
+    }
+
+    @GetMapping("/{id}/history")
+    public List<com.unavaliability.backend.models.UnavailabilityAudit> history(@PathVariable Long id) {
+        return service.history(currentUser.require(), id);
+    }
 }

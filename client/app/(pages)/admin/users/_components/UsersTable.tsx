@@ -4,22 +4,23 @@ import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { Trash2, Building2 } from 'lucide-react';
 import { Card } from '../../../../components/Card';
-import { ROLE_LABELS } from '../../../../lib/client-config';
+import { ROLE_LABELS, ROLES, ASSIGNABLE_ROLES } from '../../../../lib/client-config';
 import { statusBadgeClasses } from '../../../../lib/ui-utils';
-
-const ASSIGNABLE_ROLES = ['admin_editor', 'admin_leitor', 'lider', 'socio', 'colaborador'];
+import type { User } from '../../../../lib/types';
 
 interface Props {
-  users: any[];
+  users: User[];
   currentUserId: number;
   isMaster: boolean;
+  busyKey: string | number | null;
+  disabled: boolean;
   onChangeRole: (id: number, role: string) => void;
   onAssignSetor: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
 
-export function UsersTable({ users, currentUserId, isMaster, onChangeRole, onAssignSetor, onDelete }: Props) {
+export function UsersTable({ users, currentUserId, isMaster, busyKey, disabled, onChangeRole, onAssignSetor, onDelete }: Props) {
   return (
     <Card>
       <h4 className="mb-3 font-semibold">Todos os Usuários ({users.length})</h4>
@@ -37,7 +38,7 @@ export function UsersTable({ users, currentUserId, isMaster, onChangeRole, onAss
           </thead>
           <tbody>
             {users.map((u) => {
-              const isLider = u.role === 'lider';
+              const isLider = u.role === ROLES.LIDER;
               return (
                 <tr key={u.id} className="border-b border-[var(--border)] last:border-0">
                   <td className="px-4 py-2.5 font-medium">
@@ -47,7 +48,7 @@ export function UsersTable({ users, currentUserId, isMaster, onChangeRole, onAss
                   <td className="px-4 py-2.5 text-[var(--text-muted)] text-xs">{u.email}</td>
                   <td className="px-4 py-2.5 text-xs">{u.department || '-'}</td>
                   <td className="px-4 py-2.5 text-center">
-                    {u.role === 'admin_master' ? (
+                    {u.role === ROLES.ADMIN_MASTER ? (
                       <span className="text-[11px] bg-purple-500 text-white px-2 py-0.5 rounded">Admin Master</span>
                     ) : (
                       <Dropdown
@@ -64,11 +65,11 @@ export function UsersTable({ users, currentUserId, isMaster, onChangeRole, onAss
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     <div className="flex gap-1 justify-center">
-                      {isMaster && u.role !== 'admin_master' && (
-                        <Button icon={<Building2 size={12} />} size="small" severity="secondary" outlined label="Setor" onClick={() => onAssignSetor(u.id)} />
+                      {isMaster && u.role !== ROLES.ADMIN_MASTER && (
+                        <Button icon={<Building2 size={12} />} size="small" severity="secondary" outlined label="Setor" disabled={disabled} onClick={() => onAssignSetor(u.id)} />
                       )}
                       {u.id !== currentUserId && (
-                        <Button icon={<Trash2 size={12} />} size="small" severity="danger" outlined label="Remover" onClick={() => onDelete(u.id)} />
+                        <Button icon={<Trash2 size={12} />} size="small" severity="danger" outlined label="Remover" loading={busyKey === `delete-${u.id}`} disabled={disabled} onClick={() => onDelete(u.id)} />
                       )}
                     </div>
                   </td>

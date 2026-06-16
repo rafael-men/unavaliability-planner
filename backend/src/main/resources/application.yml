@@ -33,6 +33,19 @@ spring:
             non_contextual_creation: true
     show-sql: false
 
+
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 server:
   port: 8080
   forward-headers-strategy: framework
@@ -43,6 +56,8 @@ app:
     expiration-ms: 604800000
   cors:
     allowed-origins: http://localhost:3000
+  mail:
+    from: ${MAIL_FROM:}
   security:
     require-https: false
     hsts-max-age-seconds: 31536000

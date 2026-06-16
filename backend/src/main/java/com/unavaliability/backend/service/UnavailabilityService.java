@@ -9,17 +9,12 @@ import com.unavaliability.backend.dto.UnavailabilityDtos.UnavailabilityView;
 import com.unavaliability.backend.dto.UnavailabilityDtos.UpdateRequest;
 import com.unavaliability.backend.dto.UnavailabilityDtos.UsersOnLeave;
 import com.unavaliability.backend.exception.ApiException;
-import com.unavaliability.backend.models.Cliente;
-import com.unavaliability.backend.models.Evento;
-import com.unavaliability.backend.models.EventoCliente;
-import com.unavaliability.backend.models.Member;
-import com.unavaliability.backend.models.Unavailability;
-import com.unavaliability.backend.models.User;
-import com.unavaliability.backend.models.UserCliente;
+import com.unavaliability.backend.models.*;
 import com.unavaliability.backend.repositories.ClienteRepository;
 import com.unavaliability.backend.repositories.EventoClienteRepository;
 import com.unavaliability.backend.repositories.EventoRepository;
 import com.unavaliability.backend.repositories.MemberRepository;
+import com.unavaliability.backend.repositories.UnavailabilityAuditRepository;
 import com.unavaliability.backend.repositories.UnavailabilityRepository;
 import com.unavaliability.backend.repositories.UserClienteRepository;
 import com.unavaliability.backend.repositories.UserRepository;
@@ -53,13 +48,16 @@ public class UnavailabilityService {
     private final EventoClienteRepository eventoClienteRepository;
     private final ClienteRepository clienteRepository;
     private final SetorService setorService;
+    private final UnavailabilityAuditRepository auditRepository;
+    private final EmailService emailService;
 
     public UnavailabilityService(UnavailabilityRepository unavailabilityRepository,
                                  UserRepository userRepository, MemberRepository memberRepository,
                                  UserClienteRepository userClienteRepository,
                                  EventoRepository eventoRepository,
                                  EventoClienteRepository eventoClienteRepository,
-                                 ClienteRepository clienteRepository, SetorService setorService) {
+                                 ClienteRepository clienteRepository, SetorService setorService,
+                                 UnavailabilityAuditRepository auditRepository, EmailService emailService) {
         this.unavailabilityRepository = unavailabilityRepository;
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
@@ -68,6 +66,22 @@ public class UnavailabilityService {
         this.eventoClienteRepository = eventoClienteRepository;
         this.clienteRepository = clienteRepository;
         this.setorService = setorService;
+        this.auditRepository = auditRepository;
+        this.emailService = emailService;
+    }
+
+
+    private void audit(Long unavId, String action, User actor, String detail) {
+        auditRepository.save(new UnavailabilityAudit(
+                unavId, action,
+                actor != null ? actor.getId() : null,
+                actor != null ? actor.getNome() : null,
+                detail));
+    }
+
+  
+    private String ownerEmail(Long userId) {
+        return userRepository.findById(userId).map(User::getEmail).orElse(null);
     }
 
 
@@ -113,6 +127,8 @@ public class UnavailabilityService {
         u.setTotalDays(expectedDays);
         u.setStatus("pending");
         unavailabilityRepository.save(u);
+        audit(u.getId(), "created", user,
+                "Solicitação criada (" + start + " a " + end + ", " + expectedDays + " dias úteis).");
     }
 
 
@@ -323,6 +339,7 @@ public class UnavailabilityService {
         record.setReviewedBy(approver.getId());
         record.setReviewedAt(java.time.OffsetDateTime.now());
         unavailabilityRepository.save(record);
+        audit(record.getId(), "approved", approver, "Solicitação aprovada.");
     }
 
 
@@ -333,6 +350,78 @@ public class UnavailabilityService {
         record.setReviewedBy(approver.getId());
         record.setReviewedAt(java.time.OffsetDateTime.now());
         unavailabilityRepository.save(record);
+        audit(record.getId(), "rejected", approver, "Solicitação rejeitada.");
+    }
+
+
+    @Transactional
+    public void cancelOrShorten(User actor, Long id, LocalDate newEndDate, LocalDate today) {
+        if (!Roles.isAdminEditor(actor.getRole()) && !Roles.isLider(actor.getRole())) {
+            throw ApiException.forbidden("Apenas administradores ou líderes podem ajustar este período.");
+        }
+        Unavailability record = unavailabilityRepository.findById(id).orElse(null);
+        if (record == null) {
+            throw ApiException.notFound("Solicitação não encontrado.");
+        }
+        if (!"approved".equals(record.getStatus())) {
+            throw ApiException.badRequest("Apenas solicitações aprovadas podem ser canceladas ou encurtadas.");
+        }
+        if (Roles.isLider(actor.getRole()) && !Roles.isAdminEditor(actor.getRole()) && !canApprove(actor, record)) {
+            throw ApiException.forbidden("Você não tem permissão para ajustar esta solicitação.");
+        }
+
+        String ownerEmail = ownerEmail(record.getUserId());
+        String detalhe;
+        String assunto;
+        String corpo;
+
+        if (newEndDate == null) {
+            record.setStatus("canceled");
+            detalhe = "Período cancelado por " + actor.getNome() + ".";
+            assunto = "Sua indisponibilidade foi cancelada";
+            corpo = "Olá " + record.getFullName() + ",\n\n"
+                    + "Seu período de indisponibilidade (" + record.getStartDate() + " a "
+                    + record.getEndDate() + ") foi CANCELADO por " + actor.getNome() + ".\n"
+                    + "Os dias voltam para sua cota. Em caso de dúvida, procure seu líder.\n";
+            unavailabilityRepository.save(record);
+            audit(record.getId(), "canceled", actor, detalhe);
+        } else {
+            if (newEndDate.isBefore(record.getStartDate())) {
+                throw ApiException.badRequest("A nova data de retorno não pode ser anterior ao início.");
+            }
+            if (!newEndDate.isBefore(record.getEndDate())) {
+                throw ApiException.badRequest("A nova data de retorno deve ser anterior ao fim atual.");
+            }
+            LocalDate fimAntigo = record.getEndDate();
+            int novosDias = BusinessDays.count(record.getStartDate(), newEndDate);
+            record.setEndDate(newEndDate);
+            record.setTotalDays(novosDias);
+            detalhe = "Retorno antecipado: fim alterado de " + fimAntigo + " para " + newEndDate
+                    + " (" + novosDias + " dias úteis).";
+            assunto = "Seu retorno foi antecipado";
+            corpo = "Olá " + record.getFullName() + ",\n\n"
+                    + "Seu período de indisponibilidade foi AJUSTADO por " + actor.getNome() + ".\n"
+                    + "Nova data de retorno: " + newEndDate + " (antes era " + fimAntigo + ").\n"
+                    + "Total de dias úteis agora: " + novosDias + ". O excedente volta para sua cota.\n";
+            unavailabilityRepository.save(record);
+            audit(record.getId(), "shortened", actor, detalhe);
+        }
+
+        emailService.send(ownerEmail, assunto, corpo);
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<UnavailabilityAudit> history(User user, Long id) {
+        Unavailability record = unavailabilityRepository.findById(id).orElse(null);
+        if (record == null) {
+            throw ApiException.notFound("Solicitação não encontrado.");
+        }
+        boolean dono = record.getUserId().equals(user.getId());
+        if (!dono && !Roles.canViewAll(user.getRole()) && !Roles.isLider(user.getRole())) {
+            throw ApiException.forbidden("Sem permissão para ver o histórico desta solicitação.");
+        }
+        return auditRepository.findByUnavailabilityIdOrderByCreatedAtAsc(id);
     }
 
     private Unavailability loadPendingForReview(User approver, Long id, String verb) {

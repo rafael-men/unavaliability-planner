@@ -29,6 +29,27 @@ export const STATUS_MAP: Record<string, { label: string; color: string; bg: stri
   rejected: { label: 'Rejeitado', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
 };
 
+export const ROLES = {
+  ADMIN_MASTER: 'admin_master',
+  ADMIN_EDITOR: 'admin_editor',
+  ADMIN_LEITOR: 'admin_leitor',
+  LIDER: 'lider',
+  SOCIO: 'socio',
+  COLABORADOR: 'colaborador',
+} as const;
+
+export type Role = typeof ROLES[keyof typeof ROLES];
+
+
+export const ASSIGNABLE_ROLES: Role[] = [
+  ROLES.ADMIN_EDITOR, ROLES.ADMIN_LEITOR, ROLES.LIDER, ROLES.SOCIO, ROLES.COLABORADOR,
+];
+
+
+export const CREATABLE_ROLES: Role[] = [
+  ROLES.COLABORADOR, ROLES.SOCIO, ROLES.ADMIN_LEITOR, ROLES.ADMIN_EDITOR,
+];
+
 export const ROLE_LABELS: Record<string, string> = {
   admin_master: 'Admin Master',
   admin_editor: 'Admin Editor',

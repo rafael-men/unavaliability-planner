@@ -2,18 +2,20 @@
 
 import { useState } from 'react';
 import { Button } from 'primereact/button';
+import { confirmDialog } from 'primereact/confirmdialog';
 import { Clock } from 'lucide-react';
 import { Card } from '../../../components/Card';
 import { UnavailList } from '../../../components/UnavailList';
 import { isEditorRole, isLiderRole } from '../../../lib/client-config';
 import { useAuth, useToast } from '../../../providers';
 import { API } from '../../../lib/api-client';
+import type { UnavailabilityRecord } from '../../../lib/types';
 
 interface Props {
-  items: any[];
+  items: UnavailabilityRecord[];
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
-  onEdit: (item: any) => void;
+  onEdit: (item: UnavailabilityRecord) => void;
   onDelete: (id: number) => void;
   onReload: () => void;
 }
@@ -31,18 +33,25 @@ export function PendingContent({ items, onApprove, onReject, onEdit, onDelete, o
     });
   }
 
-  async function batchAction(action: 'approve' | 'reject') {
+  function batchAction(action: 'approve' | 'reject') {
     const ids = Array.from(selectedIds);
     if (!ids.length) { toast.show('Nenhuma selecionada.', 'error'); return; }
-    if (!confirm(`${action === 'approve' ? 'Aprovar' : 'Rejeitar'} ${ids.length} solicitação(ões)?`)) return;
-    let ok = 0, fail = 0;
-    await Promise.all(ids.map((id) =>
-      (action === 'approve' ? API.approveUnavailability(id) : API.rejectUnavailability(id))
-        .then(() => ok++).catch(() => fail++)
-    ));
-    toast.show(`${ok} ${action === 'approve' ? 'aprovada' : 'rejeitada'}(s)${fail ? `, ${fail} falha(s)` : ''}.`);
-    setSelectedIds(new Set());
-    onReload();
+    const verbo = action === 'approve' ? 'Aprovar' : 'Rejeitar';
+    confirmDialog({
+      message: `${verbo} ${ids.length} solicitação(ões)?`,
+      header: 'Confirmar ação em lote',
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        let ok = 0, fail = 0;
+        await Promise.all(ids.map((id) =>
+          (action === 'approve' ? API.approveUnavailability(id) : API.rejectUnavailability(id))
+            .then(() => ok++).catch(() => fail++)
+        ));
+        toast.show(`${ok} ${action === 'approve' ? 'aprovada' : 'rejeitada'}(s)${fail ? `, ${fail} falha(s)` : ''}.`);
+        setSelectedIds(new Set());
+        onReload();
+      },
+    });
   }
 
   if (!items.length) {
@@ -83,6 +92,7 @@ export function PendingContent({ items, onApprove, onReject, onEdit, onDelete, o
         onReject={onReject}
         onEdit={onEdit}
         onDelete={onDelete}
+        onChanged={onReload}
         currentUser={user!}
       />
     </>

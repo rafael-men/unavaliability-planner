@@ -1,35 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
-import { Tag } from 'primereact/tag';
-import { User, Calendar, CalendarRange, CalendarCheck, Pencil, X, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
-import { DEPT_COLORS, STATUS_MAP, formatDate, isEditorRole, AppUser } from '../lib/client-config';
+import { User, Calendar, CalendarRange, CalendarCheck, Pencil, X, CheckCircle2, XCircle, AlertTriangle, CalendarClock, History } from 'lucide-react';
+import { DEPT_COLORS, STATUS_MAP, formatDate, isEditorRole, isLiderRole, AppUser } from '../lib/client-config';
+import type { UnavailabilityRecord } from '../lib/types';
 import { Card } from './Card';
+import { CancelUnavailDialog } from '../(pages)/unavailability/_components/CancelUnavailDialog';
+import { HistoryDialog } from '../(pages)/unavailability/_components/HistoryDialog';
 
-interface EventConflict {
-  id: number;
-  nome: string;
-  descricao?: string | null;
-  data_inicio: string;
-  data_fim: string;
-  clientes: string[];
-}
-
-interface Item {
-  id: number;
-  user_id: number;
-  user_name?: string;
-  full_name?: string;
-  user_email?: string;
-  department: string;
-  unavailability_type: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  total_days: number;
-  event_conflicts?: EventConflict[];
-}
+type Item = UnavailabilityRecord;
 
 interface Props {
   items: Item[];
@@ -42,6 +23,8 @@ interface Props {
   onReject?: (id: number) => void;
   onEdit?: (item: Item) => void;
   onDelete?: (id: number) => void;
+  /** Recarrega a lista após cancelar/antecipar. */
+  onChanged?: () => void;
   currentUser: AppUser;
 }
 
@@ -56,16 +39,20 @@ export function UnavailList({
   onReject,
   onEdit,
   onDelete,
+  onChanged,
   currentUser,
 }: Props) {
   const today = new Date().toISOString().split('T')[0];
+  const canManage = isEditorRole(currentUser.role) || isLiderRole(currentUser.role);
+  const [cancelTarget, setCancelTarget] = useState<Item | null>(null);
+  const [historyId, setHistoryId] = useState<number | null>(null);
 
   return (
     <div className="flex flex-col gap-3">
       {items.map((item) => {
         const st = STATUS_MAP[item.status] || STATUS_MAP.pending;
         const isActive = item.status === 'approved' && item.start_date <= today && item.end_date >= today;
-        const deptColor = DEPT_COLORS[item.department] || 'var(--accent)';
+        const deptColor = (item.department && DEPT_COLORS[item.department]) || 'var(--accent)';
         const canEdit = item.status === 'pending' && (item.user_id === currentUser.id || isEditorRole(currentUser.role));
 
         return (
@@ -163,11 +150,22 @@ export function UnavailList({
                     <Button size="small" severity="danger" outlined onClick={() => onDelete?.(item.id)} icon={<X size={12} />} label="Cancelar" />
                   </>
                 )}
+                {item.status === 'approved' && canManage && (
+                  <Button size="small" severity="warning" outlined onClick={() => setCancelTarget(item)} icon={<CalendarClock size={12} />} label="Encerrar/Antecipar" />
+                )}
+                <Button size="small" severity="secondary" text onClick={() => setHistoryId(item.id)} icon={<History size={12} />} label="Histórico" />
               </div>
             </div>
           </Card>
         );
       })}
+
+      <CancelUnavailDialog
+        record={cancelTarget}
+        onHide={() => setCancelTarget(null)}
+        onDone={() => { setCancelTarget(null); onChanged?.(); }}
+      />
+      <HistoryDialog unavailabilityId={historyId} onHide={() => setHistoryId(null)} />
     </div>
   );
 }

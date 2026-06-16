@@ -26,8 +26,6 @@ export function setToken(token: string | null) {
   writeCookie(token);
 }
 
-// Chaves de estado por-usuário em localStorage que devem ser limpas no logout
-// para não vazar entre contas no mesmo navegador.
 const PER_USER_KEYS = ['notif:seen-ids'];
 
 export function clearToken() {
@@ -113,8 +111,6 @@ async function request<T = any>(method: Method, url: string, body: any = null, r
 export const API = {
   clearCache,
   login: async (email: string, password: string) => {
-    // Limpa cache ANTES de logar para não servir dados de um usuário anterior
-    // (o cache de 15s é global e não tem o usuário na chave).
     clearCache();
     const data = await request<any>('POST', '/api/auth/login', { email, password });
     if (data?.token) setToken(data.token);
@@ -130,6 +126,10 @@ export const API = {
     }
   },
   me: () => request('GET', '/api/auth/me'),
+  forgotPassword: (email: string) => request('POST', '/api/auth/forgot-password', { email }),
+
+  getTickets: (onlyOpen = false) => request<any[]>('GET', `/api/admin/tickets?onlyOpen=${onlyOpen}`),
+  resolveTicket: (id: number, password: string) => request('POST', `/api/admin/tickets/${id}/resolve`, { password }),
 
   getSetores: () => request<string[]>('GET', '/api/setores'),
   createSetor: (name: string) => request('POST', '/api/admin/setores', { name }),
@@ -184,4 +184,8 @@ export const API = {
   approveUnavailability: (id: number) => request('POST', `/api/unavailability/${id}/approve`),
   rejectUnavailability: (id: number) => request('POST', `/api/unavailability/${id}/reject`),
   deleteUnavailability: (id: number) => request('DELETE', `/api/unavailability/${id}`),
+  cancelUnavailability: (id: number, newEndDate?: string) =>
+    request('POST', `/api/unavailability/${id}/cancel`, newEndDate ? { new_end_date: newEndDate } : {}),
+  getUnavailabilityHistory: (id: number) =>
+    request<any[]>('GET', `/api/unavailability/${id}/history`),
 };

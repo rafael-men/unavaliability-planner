@@ -7,10 +7,8 @@ import { Password } from 'primereact/password';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { API } from '../../../../lib/api-client';
-import { ROLE_LABELS } from '../../../../lib/client-config';
+import { ROLE_LABELS, CREATABLE_ROLES } from '../../../../lib/client-config';
 import { useToast } from '../../../../providers';
-
-const CREATABLE_ROLES = ['colaborador', 'socio', 'admin_leitor', 'admin_editor'];
 
 interface Props {
   visible: boolean;
@@ -19,7 +17,7 @@ interface Props {
   setores: string[];
 }
 
-/** Diálogo de criação direta de usuário (admin master) — já entra aprovado. */
+
 export function CreateUserDialog({ visible, onHide, onSaved, setores }: Props) {
   const toast = useToast();
   const [email, setEmail] = useState('');

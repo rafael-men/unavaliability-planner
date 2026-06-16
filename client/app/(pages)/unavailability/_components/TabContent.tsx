@@ -91,7 +91,7 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
           </h3>
           <p className="text-xs text-[var(--text-muted)]">Períodos aprovados que incluem a data de hoje</p>
         </div>
-        <UnavailList items={list} showUser currentUser={user!} onEdit={onEdit} onDelete={onDelete} />
+        <UnavailList items={list} showUser currentUser={user!} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />
       </>
     );
   }
@@ -99,11 +99,11 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
   if (tabKey === 'mine') {
     const list = (data || []) as any[];
     if (!list.length) return <Card className="text-center text-[var(--text-muted)] py-10">Você não tem solicitações.</Card>;
-    return <UnavailList items={list} currentUser={user!} onEdit={onEdit} onDelete={onDelete} />;
+    return <UnavailList items={list} currentUser={user!} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />;
   }
 
   if (tabKey === 'all') {
-    return <AllHistoryContent all={data?.data || []} truncated={data?.truncated} onEdit={onEdit} onDelete={onDelete} />;
+    return <AllHistoryContent all={data?.data || []} truncated={data?.truncated} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />;
   }
 
   return null;

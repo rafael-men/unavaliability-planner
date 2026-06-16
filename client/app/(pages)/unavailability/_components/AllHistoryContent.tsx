@@ -13,6 +13,7 @@ interface Props {
   truncated?: boolean;
   onEdit: (item: any) => void;
   onDelete: (id: number) => void;
+  onChanged?: () => void;
 }
 
 const STATUS_FILTERS = [
@@ -22,7 +23,7 @@ const STATUS_FILTERS = [
   { v: 'rejected', label: 'Rejeitado' },
 ];
 
-export function AllHistoryContent({ all, truncated, onEdit, onDelete }: Props) {
+export function AllHistoryContent({ all, truncated, onEdit, onDelete, onChanged }: Props) {
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
@@ -83,7 +84,7 @@ export function AllHistoryContent({ all, truncated, onEdit, onDelete }: Props) {
       {!filtered.length ? (
         <Card className="text-center text-[var(--text-muted)] py-8">Nenhum resultado.</Card>
       ) : (
-        <UnavailList items={filtered} showUser currentUser={user!} onEdit={onEdit} onDelete={onDelete} />
+        <UnavailList items={filtered} showUser currentUser={user!} onEdit={onEdit} onDelete={onDelete} onChanged={onChanged} />
       )}
     </div>
   );

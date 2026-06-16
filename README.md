@@ -1,6 +1,6 @@
 # Sistema de Indisponibilidade
 
-Aplicação web para controle de períodos de indisponibilidade de agenda (férias, day-offs) com fluxo de aprovação, gestão de clientes/eventos e detecção de conflitos.
+Aplicação web para controle de períodos de indisponibilidade de escala de trabalho com fluxo de aprovação, gestão de clientes/eventos e detecção de conflitos.
 
 ## O que a aplicação faz
 
@@ -15,7 +15,12 @@ Aplicação web para controle de períodos de indisponibilidade de agenda (féri
 - **Dashboard analítico** — dias de indisponibilidade por setor e por mês, taxa de aprovação, tempo médio de aprovação e ranking de conflitos por cliente.
 - **Forecast de capacidade** — projeção de quantas pessoas estarão indisponíveis por semana nas próximas N semanas.
 - **Exportação** — relatório de indisponibilidades e calendário em **CSV, Excel (XLSX) e PDF**.
+- **Cancelamento / retorno antecipado** — admin/líder cancela ou encurta um período aprovado; os dias voltam para a cota e o colaborador é **notificado por e-mail**.
+- **Histórico (auditoria)** — linha do tempo de cada solicitação (criada → editada → aprovada/rejeitada → cancelada/antecipada), com quem fez e quando.
+- **Reset de senha por ticket** — "Esqueci a senha" abre um chamado (resposta neutra, anti-enumeração); o admin vê na aba **Tickets**, define a nova senha e ela é enviada por **e-mail**.
+- **Notificações por e-mail** — disparadas em cancelamento/antecipação e reset de senha (SMTP configurável; sem config, loga em dev).
 - **Documentação interativa da API** — Swagger UI (OpenAPI 3) com autenticação Bearer.
+- **UI responsiva** — navbar vira menu hambúrguer no mobile; tema "liquid glass" (gradiente verde gasolina → azul escuro, vidro fosco).
 
 ## Papéis
 
@@ -43,7 +48,7 @@ Browser → /api/...  (mesma origem, sem CORS)
 
 ## Stack
 
-**Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security) · JWT (jjwt) · Flyway · PostgreSQL (Supabase) · springdoc/OpenAPI (Swagger) · Apache POI (Excel) · OpenPDF · Maven
+**Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security, Mail) · JWT (jjwt) · Flyway · PostgreSQL (Supabase) · springdoc/OpenAPI (Swagger) · Apache POI (Excel) · OpenPDF · Maven
 
 **Front:** Next.js 16 (App Router) · React 19 · TypeScript · PrimeReact · Tailwind 4 · Lucide
 
@@ -55,6 +60,7 @@ Browser → /api/...  (mesma origem, sem CORS)
 - **Autorização por papel** validada na camada de serviço (admin/líder por setor ou `report_to`).
 - **Rate limit** por IP (10 tentativas / 15 min) + **lockout por conta** após falhas consecutivas, com limpeza agendada.
 - **CORS** com allow-list, **HSTS**, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e HTTPS opcional (`REQUIRE_HTTPS`).
+- **Reset de senha por ticket** — abertura pública com resposta neutra (não revela se a conta existe); só admin resolve.
 
 ## Como rodar
 
@@ -71,6 +77,13 @@ SUPABASE_DB_USER=postgres.<project-ref>
 SUPABASE_DB_PASSWORD=<senha-do-banco>
 SUPABASE_SCHEMA=unavaliability
 SESSION_SECRET=<string-aleatoria-de-32-ou-mais-caracteres>
+
+# E-mail (opcional). Sem MAIL_HOST/MAIL_FROM, as notificações são apenas logadas (dev).
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=<seu-email>
+MAIL_PASSWORD=<app-password>
+MAIL_FROM=<seu-email>
 ```
 
 ```bash
@@ -79,7 +92,7 @@ cd backend
 ```
 
 No primeiro boot o **Flyway** aplica as migrations em `src/main/resources/db/migration`:
-`V1` cria o schema e as tabelas; `V2` insere o admin master inicial.
+`V1` cria o schema e as tabelas; `V2` insere o admin master inicial; `V3` cria a auditoria de solicitações; `V4` cria os tickets de senha.
 
 Com o backend no ar, a documentação interativa fica em **`http://localhost:8080/swagger-ui.html`** (OpenAPI JSON em `/v3/api-docs`). Use o botão **Authorize** com o token obtido em `/api/auth/login`.
 
@@ -123,7 +136,7 @@ backend/                         # API Java / Spring Boot
     exception/     # ApiException + handler global
   src/main/resources/
     application.yml
-    db/migration/  # V1__init.sql, V2__seed_admin_master.sql (Flyway)
+    db/migration/  # V1 schema · V2 seed admin · V3 auditoria · V4 tickets de senha
   src/test/java/   # JUnit 5 + Mockito (services e utils)
 
 client/                          # Front-end Next.js
@@ -144,10 +157,11 @@ client/                          # Front-end Next.js
 - Sem sobreposição com pedidos próprios pendentes/aprovados.
 - Cota anual de dias resetada por ano civil.
 - `admin_master` pode aprovar a própria solicitação; demais não.
+- Só pedidos **aprovados** podem ser cancelados/antecipados (admin/líder); a nova data de retorno deve ser anterior ao fim atual e recalcula os dias úteis.
 
-## API — Analytics & Exportação
+## API — endpoints notáveis
 
-Endpoints restritos a quem pode ver tudo (admins / sócio):
+Analytics & exportação (restritos a admins / sócio):
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
@@ -155,6 +169,16 @@ Endpoints restritos a quem pode ver tudo (admins / sócio):
 | `GET` | `/api/analytics/forecast?semanas=8` | Projeção de pessoas indisponíveis por semana (1–26 semanas). |
 | `GET` | `/api/export/relatorio?formato=csv\|xlsx\|pdf` | Exporta o relatório de indisponibilidades. |
 | `GET` | `/api/export/calendario?formato=csv\|xlsx\|pdf` | Exporta o calendário de indisponibilidades ativas. |
+
+Solicitações & tickets:
+
+| Método | Rota | Descrição |
+| ------ | ---- | --------- |
+| `POST` | `/api/unavailability/{id}/cancel` | Cancela (corpo vazio) ou antecipa o retorno (`{ "new_end_date": "YYYY-MM-DD" }`). Admin/líder; notifica o dono por e-mail. |
+| `GET` | `/api/unavailability/{id}/history` | Linha do tempo (auditoria) da solicitação. |
+| `POST` | `/api/auth/forgot-password` | Público. Abre ticket de redefinição (resposta neutra). |
+| `GET` | `/api/admin/tickets?onlyOpen=` | Lista tickets de senha (admin). |
+| `POST` | `/api/admin/tickets/{id}/resolve` | Define a nova senha e envia por e-mail (admin). |
 
 ## Testes
 

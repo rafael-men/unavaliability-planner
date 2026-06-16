@@ -15,10 +15,27 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     if (user) router.replace('/unavailability');
   }, [user, router]);
+
+  async function doForgot() {
+    if (!email.trim()) {
+      setError('Informe seu email acima para solicitar a redefinição.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res: any = await API.forgotPassword(email.trim());
+      toast.show(res?.message || 'Solicitação enviada.');
+    } catch (err: any) {
+      toast.show(err.message, 'error');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
 
   async function doLogin(e?: React.FormEvent) {
     e?.preventDefault();
@@ -58,37 +75,41 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
-              <Mail size={12} /> Email
+            <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+              <Mail size={12} aria-hidden /> Email
             </label>
             <input
+              id="login-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
+              autoComplete="email"
               placeholder="seu@.com.br"
               disabled={loading}
-              className="w-full px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-foreground placeholder:text-[var(--text-dim)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:opacity-60 transition"
+              className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-foreground placeholder:text-[var(--text-dim)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:opacity-60 transition"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
-              <KeyRound size={12} /> Senha
+            <label htmlFor="login-password" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+              <KeyRound size={12} aria-hidden /> Senha
             </label>
             <div className="relative">
               <input
+                id="login-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type={showPwd ? 'text' : 'password'}
+                autoComplete="current-password"
                 placeholder="Sua senha"
                 disabled={loading}
-                className="w-full px-4 py-2.5 pr-11 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-foreground placeholder:text-[var(--text-dim)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:opacity-60 transition"
+                className="w-full px-4 py-2.5 pr-11 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-foreground placeholder:text-[var(--text-dim)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:opacity-60 transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPwd((v) => !v)}
+                aria-label={showPwd ? 'Ocultar senha' : 'Mostrar senha'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-foreground transition"
-                tabIndex={-1}
               >
                 {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -98,10 +119,18 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent)] hover:brightness-110 active:brightness-95 text-white font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] hover:brightness-110 active:brightness-95 text-white font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+          <button
+            type="button"
+            onClick={doForgot}
+            disabled={forgotLoading}
+            className="w-full text-center text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
+          >
+            {forgotLoading ? 'Enviando solicitação…' : 'Esqueci minha senha'}
           </button>
         </form>
 

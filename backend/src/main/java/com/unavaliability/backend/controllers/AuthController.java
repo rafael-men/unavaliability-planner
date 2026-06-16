@@ -7,6 +7,7 @@ import com.unavaliability.backend.dto.AuthDtos.RegisterRequest;
 import com.unavaliability.backend.dto.AuthDtos.UserSummary;
 import com.unavaliability.backend.security.CurrentUserProvider;
 import com.unavaliability.backend.service.AuthService;
+import com.unavaliability.backend.service.PasswordTicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,10 +24,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final CurrentUserProvider currentUser;
+    private final PasswordTicketService ticketService;
 
-    public AuthController(AuthService authService, CurrentUserProvider currentUser) {
+    public AuthController(AuthService authService, CurrentUserProvider currentUser,
+                          PasswordTicketService ticketService) {
         this.authService = authService;
         this.currentUser = currentUser;
+        this.ticketService = ticketService;
     }
 
     @PostMapping("/login")
@@ -51,6 +55,17 @@ public class AuthController {
     @PostMapping("/logout")
     public Map<String, Object> logout() {
         return Map.of("success", true);
+    }
+
+    public record ForgotPasswordRequest(String email) {
+    }
+
+
+    @PostMapping("/forgot-password")
+    public Map<String, Object> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        ticketService.open(req != null ? req.email() : null);
+        return Map.of("success", true,
+                "message", "Se o e-mail estiver cadastrado, um chamado foi aberto para um administrador.");
     }
 
     private String clientIp(HttpServletRequest http) {
