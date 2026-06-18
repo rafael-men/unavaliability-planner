@@ -10,7 +10,7 @@ import com.unavaliability.backend.models.UserCliente;
 import com.unavaliability.backend.models.UserClienteId;
 import com.unavaliability.backend.repositories.ClienteRepository;
 import com.unavaliability.backend.repositories.UserClienteRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,22 +23,19 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final UserClienteRepository userClienteRepository;
+    private final AuthorizationService authz;
 
-    public ClienteService(ClienteRepository clienteRepository, UserClienteRepository userClienteRepository) {
+    public ClienteService(ClienteRepository clienteRepository, UserClienteRepository userClienteRepository,
+                          AuthorizationService authz) {
         this.clienteRepository = clienteRepository;
         this.userClienteRepository = userClienteRepository;
-    }
-
-    private void requireAdminEditor(User actor) {
-        if (!Roles.isAdminEditor(actor.getRole())) {
-            throw ApiException.forbidden("Apenas Admin Editor pode realizar esta ação.");
-        }
+        this.authz = authz;
     }
 
 
     @Transactional(readOnly = true)
     public ClientesResponse listWithLinks(User actor) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         List<Cliente> clientes = clienteRepository.findAllByOrderByNomeAsc();
         List<UserClienteLink> links = userClienteRepository.findAll().stream()
                 .map(uc -> new UserClienteLink(
@@ -50,7 +47,7 @@ public class ClienteService {
 
     @Transactional
     public Cliente create(User actor, ClienteRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         validateNome(req == null ? null : req.nome());
         String nome = TextUtils.cleanText(req.nome());
         if (clienteRepository.findByNomeIgnoreCase(nome).isPresent()) {
@@ -66,7 +63,7 @@ public class ClienteService {
 
     @Transactional
     public Cliente update(User actor, Long id, ClienteRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         Cliente c = clienteRepository.findById(id).orElse(null);
         if (c == null) {
             throw ApiException.notFound("Cliente não encontrado.");
@@ -87,7 +84,7 @@ public class ClienteService {
 
     @Transactional
     public void delete(User actor, Long id) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         if (!clienteRepository.existsById(id)) {
             throw ApiException.notFound("Cliente não encontrado.");
         }
@@ -97,7 +94,7 @@ public class ClienteService {
 
     @Transactional
     public void assign(User actor, Long clienteId, AssignUserRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         if (req == null || req.user_id() == null) {
             throw ApiException.badRequest("user_id inválido.");
         }
@@ -115,7 +112,7 @@ public class ClienteService {
 
     @Transactional
     public void unassign(User actor, Long clienteId, Long userId) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         if (userId == null) {
             throw ApiException.badRequest("user_id inválido.");
         }

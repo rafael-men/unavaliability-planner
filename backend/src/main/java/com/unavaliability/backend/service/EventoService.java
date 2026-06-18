@@ -12,7 +12,7 @@ import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.ClienteRepository;
 import com.unavaliability.backend.repositories.EventoClienteRepository;
 import com.unavaliability.backend.repositories.EventoRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,19 +32,16 @@ public class EventoService {
     private final EventoRepository eventoRepository;
     private final EventoClienteRepository eventoClienteRepository;
     private final ClienteRepository clienteRepository;
+    private final AuthorizationService authz;
 
     public EventoService(EventoRepository eventoRepository,
                          EventoClienteRepository eventoClienteRepository,
-                         ClienteRepository clienteRepository) {
+                         ClienteRepository clienteRepository,
+                         AuthorizationService authz) {
         this.eventoRepository = eventoRepository;
         this.eventoClienteRepository = eventoClienteRepository;
         this.clienteRepository = clienteRepository;
-    }
-
-    private void requireAdminEditor(User actor) {
-        if (!Roles.isAdminEditor(actor.getRole())) {
-            throw ApiException.forbidden("Apenas Admin Editor pode realizar esta ação.");
-        }
+        this.authz = authz;
     }
 
 
@@ -56,7 +53,7 @@ public class EventoService {
 
     @Transactional
     public EventoView create(User actor, EventoRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         validate(req, null);
         Evento e = new Evento();
         e.setNome(TextUtils.cleanText(req.nome()));
@@ -71,7 +68,7 @@ public class EventoService {
 
     @Transactional
     public EventoView update(User actor, Long id, EventoRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         Evento e = eventoRepository.findById(id).orElse(null);
         if (e == null) {
             throw ApiException.notFound("Evento não encontrado.");
@@ -103,7 +100,7 @@ public class EventoService {
 
     @Transactional
     public void delete(User actor, Long id) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         if (!eventoRepository.existsById(id)) {
             throw ApiException.notFound("Evento não encontrado.");
         }

@@ -1,11 +1,12 @@
 package com.unavaliability.backend.service;
 
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.exception.ApiException;
 import com.unavaliability.backend.models.PasswordTicket;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.PasswordTicketRepository;
 import com.unavaliability.backend.repositories.UserRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,16 @@ public class PasswordTicketService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuthorizationService authz;
 
     public PasswordTicketService(PasswordTicketRepository ticketRepository, UserRepository userRepository,
-                                 PasswordEncoder passwordEncoder, EmailService emailService) {
+                                 PasswordEncoder passwordEncoder, EmailService emailService,
+                                 AuthorizationService authz) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
-    }
-
-    private void requireAdminEditor(User actor) {
-        if (!Roles.isAdminEditor(actor.getRole())) {
-            throw ApiException.forbidden("Acesso restrito a administradores.");
-        }
+        this.authz = authz;
     }
 
 
@@ -48,7 +46,7 @@ public class PasswordTicketService {
         if (user == null) {
             return;
         }
-        if (ticketRepository.existsByEmailIgnoreCaseAndStatus(email, "open")) {
+        if (ticketRepository.existsByEmailIgnoreCaseAndStatus(email, Status.Ticket.OPEN)) {
             return;
         }
         ticketRepository.save(new PasswordTicket(email, user.getId()));
@@ -56,26 +54,26 @@ public class PasswordTicketService {
 
     @Transactional(readOnly = true)
     public List<PasswordTicket> list(User actor, boolean onlyOpen) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         return onlyOpen
-                ? ticketRepository.findByStatusOrderByCreatedAtDesc("open")
+                ? ticketRepository.findByStatusOrderByCreatedAtDesc(Status.Ticket.OPEN)
                 : ticketRepository.findAllByOrderByCreatedAtDesc();
     }
 
     @Transactional(readOnly = true)
     public long countOpen() {
-        return ticketRepository.findByStatusOrderByCreatedAtDesc("open").size();
+        return ticketRepository.findByStatusOrderByCreatedAtDesc(Status.Ticket.OPEN).size();
     }
 
 
     @Transactional
     public void resolve(User actor, Long ticketId, String newPassword) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         PasswordTicket ticket = ticketRepository.findById(ticketId).orElse(null);
         if (ticket == null) {
             throw ApiException.notFound("Ticket não encontrado.");
         }
-        if ("resolved".equals(ticket.getStatus())) {
+        if (Status.Ticket.RESOLVED.equals(ticket.getStatus())) {
             throw ApiException.badRequest("Ticket já foi resolvido.");
         }
         if (newPassword == null || newPassword.length() < 6) {
@@ -97,7 +95,7 @@ public class PasswordTicketService {
         user.setPassw(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        ticket.setStatus("resolved");
+        ticket.setStatus(Status.Ticket.RESOLVED);
         ticket.setResolvedBy(actor.getId());
         ticket.setResolvedAt(OffsetDateTime.now());
         ticketRepository.save(ticket);

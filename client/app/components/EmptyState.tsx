@@ -10,7 +10,6 @@ interface Props {
   action?: React.ReactNode;
 }
 
-
 export function EmptyState({ icon: Icon, title, description, action }: Props) {
   return (
     <Card className="!p-8 text-center">

@@ -8,6 +8,7 @@ import com.unavaliability.backend.repositories.ClienteRepository;
 import com.unavaliability.backend.repositories.EventoClienteRepository;
 import com.unavaliability.backend.repositories.EventoRepository;
 import com.unavaliability.backend.repositories.MemberRepository;
+import com.unavaliability.backend.repositories.UnavailabilityAuditRepository;
 import com.unavaliability.backend.repositories.UnavailabilityRepository;
 import com.unavaliability.backend.repositories.UserClienteRepository;
 import com.unavaliability.backend.repositories.UserRepository;
@@ -44,10 +45,12 @@ class UnavailabilityServiceTest {
     @Mock EventoClienteRepository eventoClienteRepository;
     @Mock ClienteRepository clienteRepository;
     @Mock SetorService setorService;
+    @Mock UnavailabilityAuditRepository auditRepository;
+    @Mock EmailService emailService;
 
     UnavailabilityService service;
 
-    // "hoje" fixo para os testes ficarem determinísticos.
+
     private static final LocalDate HOJE = LocalDate.of(2024, 1, 1); // segunda-feira
 
     private User user;
@@ -55,7 +58,8 @@ class UnavailabilityServiceTest {
     @BeforeEach
     void setUp() {
         service = new UnavailabilityService(unavailabilityRepository, userRepository, memberRepository,
-                userClienteRepository, eventoRepository, eventoClienteRepository, clienteRepository, setorService);
+                userClienteRepository, eventoRepository, eventoClienteRepository, clienteRepository, setorService,
+                auditRepository, emailService);
         user = new User();
         user.setId(1L);
         user.setNome("Rafael");
@@ -98,7 +102,6 @@ class UnavailabilityServiceTest {
     @DisplayName("início com menos de 15 dias de antecedência → 400")
     void antecedenciaMinima() {
         when(setorService.exists("Tecnologia")).thenReturn(true);
-        // início em +10 dias (< 15)
         CreateRequest r = req("pontual", HOJE.plusDays(10), HOJE.plusDays(10), 1);
         assertThatThrownBy(() -> service.create(user, r, HOJE))
                 .isInstanceOf(ApiException.class)
@@ -109,7 +112,6 @@ class UnavailabilityServiceTest {
     @DisplayName("total de dias úteis divergente do calculado → 400")
     void totalDiasDivergente() {
         when(setorService.exists("Tecnologia")).thenReturn(true);
-        // 2024-01-22 (segunda) — 1 dia útil, mas informa 5
         LocalDate ini = LocalDate.of(2024, 1, 22);
         CreateRequest r = req("pontual", ini, ini, 5);
         assertThatThrownBy(() -> service.create(user, r, HOJE))
@@ -121,7 +123,6 @@ class UnavailabilityServiceTest {
     @DisplayName("prolongado com menos de 5 dias úteis → 400")
     void prolongadoMinimo() {
         when(setorService.exists("Tecnologia")).thenReturn(true);
-        // 2024-01-22 (seg) a 2024-01-25 (qui) = 4 úteis
         LocalDate ini = LocalDate.of(2024, 1, 22);
         LocalDate fim = LocalDate.of(2024, 1, 25);
         CreateRequest r = req("prolongado", ini, fim, 4);
@@ -134,7 +135,6 @@ class UnavailabilityServiceTest {
     @DisplayName("período sobreposto a solicitação ativa → 400")
     void sobreposicao() {
         when(setorService.exists("Tecnologia")).thenReturn(true);
-        // pedido válido: 2024-01-22 (seg) a 2024-01-26 (sex) = 5 úteis
         LocalDate ini = LocalDate.of(2024, 1, 22);
         LocalDate fim = LocalDate.of(2024, 1, 26);
 
@@ -177,9 +177,5 @@ class UnavailabilityServiceTest {
         CreateRequest r = req("pontual", HOJE.plusDays(5), HOJE.plusDays(5), 1);
         assertThatThrownBy(() -> service.create(user, r, HOJE)).isInstanceOf(ApiException.class);
         verify(unavailabilityRepository, never()).save(any());
-    }
-
-    private static long eq1() {
-        return org.mockito.ArgumentMatchers.eq(1L);
     }
 }

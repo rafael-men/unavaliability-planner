@@ -9,12 +9,12 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import com.unavaliability.backend.exception.ApiException;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.models.Unavailability;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.UnavailabilityRepository;
 import com.unavaliability.backend.repositories.UserRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -46,16 +46,13 @@ public class ExportService {
 
     private final UnavailabilityRepository unavailabilityRepository;
     private final UserRepository userRepository;
+    private final AuthorizationService authz;
 
-    public ExportService(UnavailabilityRepository unavailabilityRepository, UserRepository userRepository) {
+    public ExportService(UnavailabilityRepository unavailabilityRepository, UserRepository userRepository,
+                         AuthorizationService authz) {
         this.unavailabilityRepository = unavailabilityRepository;
         this.userRepository = userRepository;
-    }
-
-    private void requireViewAll(User actor) {
-        if (!Roles.canViewAll(actor.getRole())) {
-            throw ApiException.forbidden("Acesso restrito a administradores.");
-        }
+        this.authz = authz;
     }
 
 
@@ -65,7 +62,7 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public Arquivo exportarRelatorio(User actor, Formato formato) {
-        requireViewAll(actor);
+        authz.requireCanViewAll(actor);
         List<Unavailability> registros =
                 unavailabilityRepository.findAllByOrderByCreatedAtDesc(
                         org.springframework.data.domain.PageRequest.of(0, 5000));
@@ -76,10 +73,10 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public Arquivo exportarCalendario(User actor, Formato formato, LocalDate hoje) {
-        requireViewAll(actor);
+        authz.requireCanViewAll(actor);
         List<Unavailability> ativos = unavailabilityRepository
                 .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqualOrderByStartDateAsc(
-                        "approved", hoje, hoje);
+                        Status.Unavailability.APPROVED, hoje, hoje);
         List<String[]> linhas = toLinhas(ativos);
         return gerar("calendario-ativos", "Calendário — Indisponibilidades Ativas", linhas, formato);
     }

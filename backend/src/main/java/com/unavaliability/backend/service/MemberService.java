@@ -6,7 +6,7 @@ import com.unavaliability.backend.models.Member;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.MemberRepository;
 import com.unavaliability.backend.repositories.UserRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,18 +21,14 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final UserRepository userRepository;
     private final UnavailabilityService unavailabilityService;
+    private final AuthorizationService authz;
 
     public MemberService(MemberRepository memberRepository, UserRepository userRepository,
-                         UnavailabilityService unavailabilityService) {
+                         UnavailabilityService unavailabilityService, AuthorizationService authz) {
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.unavailabilityService = unavailabilityService;
-    }
-
-    private void requireMaster(User actor) {
-        if (!Roles.isMasterAdmin(actor.getRole())) {
-            throw ApiException.forbidden("Acesso exclusivo do Admin Master.");
-        }
+        this.authz = authz;
     }
 
 
@@ -44,7 +40,7 @@ public class MemberService {
 
     @Transactional
     public Member create(User actor, MemberRequest req) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         validateRequired(req);
         String emailLower = null;
         if (req.email() != null && !req.email().isBlank()) {
@@ -64,7 +60,7 @@ public class MemberService {
 
     @Transactional
     public Member update(User actor, Long id, MemberRequest req) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         Member m = memberRepository.findById(id).orElse(null);
         if (m == null) {
             throw ApiException.notFound("Membro não encontrado.");
@@ -88,7 +84,7 @@ public class MemberService {
 
     @Transactional
     public void delete(User actor, Long id) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         if (!memberRepository.existsById(id)) {
             throw ApiException.notFound("Membro não encontrado.");
         }

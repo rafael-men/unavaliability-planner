@@ -4,6 +4,7 @@ import com.unavaliability.backend.dto.AuthDtos.LoginRequest;
 import com.unavaliability.backend.dto.AuthDtos.LoginResponse;
 import com.unavaliability.backend.dto.AuthDtos.RegisterRequest;
 import com.unavaliability.backend.dto.AuthDtos.UserSummary;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.exception.ApiException;
 import com.unavaliability.backend.models.Member;
 import com.unavaliability.backend.models.User;
@@ -96,11 +97,11 @@ public class AuthService {
 
         accountLocks.remove(email);
 
-        String status = user.getStatus() == null ? "approved" : user.getStatus();
-        if ("pending".equals(status)) {
+        String status = user.getStatus() == null ? Status.UserAccount.APPROVED : user.getStatus();
+        if (Status.UserAccount.PENDING.equals(status)) {
             throw ApiException.forbidden("Seu cadastro está aguardando aprovação de um administrador.");
         }
-        if ("rejected".equals(status)) {
+        if (Status.UserAccount.REJECTED.equals(status)) {
             throw ApiException.forbidden("Seu cadastro foi rejeitado. Entre em contato com um administrador.");
         }
         String token = jwtService.generateToken(user);
@@ -165,7 +166,7 @@ public class AuthService {
         user.setDepartment(req.department());
         user.setMemberId(member.getId());
         user.setRole(Roles.COLABORADOR);
-        user.setStatus("pending");
+        user.setStatus(Status.UserAccount.PENDING);
         userRepository.save(user);
     }
 

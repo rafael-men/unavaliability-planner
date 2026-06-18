@@ -1,6 +1,7 @@
 package com.unavaliability.backend.service;
 
 import com.unavaliability.backend.dto.UnavailabilityDtos.UnavailabilityView;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.UserRepository;
 import com.unavaliability.backend.security.Roles;
@@ -25,7 +26,7 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public Object dashboard(User user, LocalDate today) {
         if (Roles.canViewAll(user.getRole())) {
-            List<User> pendingUsers = userRepository.findByStatus("pending");
+            List<User> pendingUsers = userRepository.findByStatus(Status.UserAccount.PENDING);
             List<UnavailabilityView> pendingUnavail = unavailabilityService.pending(user);
             List<UnavailabilityView> active = unavailabilityService.active(today);
             return new AdminDashboard(user.getRole(), pendingUsers, pendingUnavail, active,

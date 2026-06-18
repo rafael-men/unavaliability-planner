@@ -2,7 +2,7 @@ package com.unavaliability.backend.service;
 
 import com.unavaliability.backend.exception.ApiException;
 import com.unavaliability.backend.models.User;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -37,11 +37,14 @@ public class SetorService {
 
     private final Path primaryFile;
     private final Path tmpFile;
+    private final AuthorizationService authz;
 
     public SetorService(@Value("${app.setores.file:setores.json}") String fileName,
-                        @Value("${java.io.tmpdir:/tmp}") String tmpDir) {
+                        @Value("${java.io.tmpdir:/tmp}") String tmpDir,
+                        AuthorizationService authz) {
         this.primaryFile = Paths.get(System.getProperty("user.dir"), fileName);
         this.tmpFile = Paths.get(tmpDir, "setores.json");
+        this.authz = authz;
     }
 
 
@@ -88,7 +91,7 @@ public class SetorService {
 
 
     public List<String> add(User actor, String name) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         if (name == null || name.trim().isEmpty()) {
             throw ApiException.badRequest("Nome do setor obrigatório.");
         }
@@ -103,7 +106,7 @@ public class SetorService {
     }
 
     public List<String> update(User actor, int index, String name) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         List<String> list = loadSetores();
         if (index < 0 || index >= list.size()) {
             throw ApiException.notFound("Setor não encontrado.");
@@ -123,7 +126,7 @@ public class SetorService {
     }
 
     public List<String> remove(User actor, int index) {
-        requireMaster(actor);
+        authz.requireMasterAdmin(actor);
         List<String> list = loadSetores();
         if (index < 0 || index >= list.size()) {
             throw ApiException.notFound("Setor não encontrado.");
@@ -132,14 +135,6 @@ public class SetorService {
         saveSetores(list);
         return list;
     }
-
-    private void requireMaster(User actor) {
-        if (!Roles.isMasterAdmin(actor.getRole())) {
-            throw ApiException.forbidden("Acesso exclusivo do Admin Master.");
-        }
-    }
-
-
 
     private List<String> parse(String json) {
         List<String> out = new ArrayList<>();

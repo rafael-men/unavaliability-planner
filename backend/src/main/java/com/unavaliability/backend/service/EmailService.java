@@ -29,7 +29,8 @@ public class EmailService {
         }
         JavaMailSender sender = mailSenderProvider.getIfAvailable();
         if (sender == null || from == null || from.isBlank()) {
-            log.info("[email:mock] para={} assunto=\"{}\"\n{}", to, subject, body);
+            log.info("[email:mock] para={} assunto=\"{}\" ({} chars no corpo, não exibido)",
+                    to, subject, body == null ? 0 : body.length());
             return;
         }
         try {

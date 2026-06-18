@@ -3,6 +3,7 @@ package com.unavaliability.backend.service;
 import com.unavaliability.backend.dto.UserDtos.AssignSetorRequest;
 import com.unavaliability.backend.dto.UserDtos.ChangeRoleRequest;
 import com.unavaliability.backend.dto.UserDtos.CreateUserRequest;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.exception.ApiException;
 import com.unavaliability.backend.models.Member;
 import com.unavaliability.backend.models.Unavailability;
@@ -10,6 +11,7 @@ import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.MemberRepository;
 import com.unavaliability.backend.repositories.UnavailabilityRepository;
 import com.unavaliability.backend.repositories.UserRepository;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.security.Roles;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,54 +35,38 @@ public class UserAdminService {
     private final UnavailabilityRepository unavailabilityRepository;
     private final PasswordEncoder passwordEncoder;
     private final SetorService setorService;
+    private final AuthorizationService authz;
 
     public UserAdminService(UserRepository userRepository, MemberRepository memberRepository,
                             UnavailabilityRepository unavailabilityRepository,
-                            PasswordEncoder passwordEncoder, SetorService setorService) {
+                            PasswordEncoder passwordEncoder, SetorService setorService,
+                            AuthorizationService authz) {
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
         this.unavailabilityRepository = unavailabilityRepository;
         this.passwordEncoder = passwordEncoder;
         this.setorService = setorService;
-    }
-
-
-    private void requireAdminOnly(User actor) {
-        if (!Roles.isAdmin(actor.getRole())) {
-            throw ApiException.forbidden("Acesso restrito a administradores.");
-        }
-    }
-
-    private void requireAdminEditor(User actor) {
-        if (!Roles.isAdminEditor(actor.getRole())) {
-            throw ApiException.forbidden("Apenas Admin Editor pode realizar esta ação.");
-        }
-    }
-
-    private void requireMasterAdmin(User actor) {
-        if (!Roles.isMasterAdmin(actor.getRole())) {
-            throw ApiException.forbidden("Acesso exclusivo do Admin Master.");
-        }
+        this.authz = authz;
     }
 
 
     @Transactional(readOnly = true)
     public List<User> listAll(User actor) {
-        requireAdminOnly(actor);
+        authz.requireAdmin(actor);
         return userRepository.findAll();
     }
 
 
     @Transactional(readOnly = true)
     public List<User> listPending(User actor) {
-        requireAdminOnly(actor);
-        return userRepository.findByStatus("pending");
+        authz.requireAdmin(actor);
+        return userRepository.findByStatus(Status.UserAccount.PENDING);
     }
 
 
     @Transactional
     public User createUser(User actor, CreateUserRequest req) {
-        requireMasterAdmin(actor);
+        authz.requireMasterAdmin(actor);
         if (req == null || isBlank(req.email()) || isBlank(req.password())
                 || isBlank(req.full_name()) || isBlank(req.department()) || isBlank(req.role())) {
             throw ApiException.badRequest("Todos os campos são obrigatórios.");
@@ -110,7 +96,7 @@ public class UserAdminService {
         user.setDepartment(req.department());
         user.setMemberId(member != null ? member.getId() : null);
         user.setRole(req.role());
-        user.setStatus("approved");
+        user.setStatus(Status.UserAccount.APPROVED);
         user.setApprovedBy(actor.getId());
         user.setApprovedAt(OffsetDateTime.now());
         return userRepository.save(user);
@@ -119,7 +105,7 @@ public class UserAdminService {
 
     @Transactional
     public void deleteUser(User actor, Long userId) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         User target = userRepository.findById(userId).orElse(null);
         if (target == null) {
             throw ApiException.notFound("Usuário não encontrado.");
@@ -131,7 +117,8 @@ public class UserAdminService {
             throw ApiException.forbidden("O Admin Master não pode ser removido.");
         }
         List<Unavailability> active =
-                unavailabilityRepository.findByUserIdAndStatusIn(userId, List.of("pending", "approved"));
+                unavailabilityRepository.findByUserIdAndStatusIn(userId,
+                        List.of(Status.Unavailability.PENDING, Status.Unavailability.APPROVED));
         if (!active.isEmpty()) {
             String labels = active.stream()
                     .map(u -> u.getStartDate() + " a " + u.getEndDate())
@@ -146,7 +133,7 @@ public class UserAdminService {
 
     @Transactional
     public void assignSetor(User actor, Long userId, AssignSetorRequest req) {
-        requireMasterAdmin(actor);
+        authz.requireMasterAdmin(actor);
         String setor = req == null ? null : req.setor();
         if (setor != null && !setor.isBlank() && !setorService.exists(setor)) {
             throw ApiException.badRequest("Setor inválido.");
@@ -173,15 +160,15 @@ public class UserAdminService {
 
     @Transactional
     public void approveUser(User actor, Long userId) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         User target = userRepository.findById(userId).orElse(null);
         if (target == null) {
             throw ApiException.notFound("Usuário não encontrado.");
         }
-        if ("approved".equals(target.getStatus())) {
+        if (Status.UserAccount.APPROVED.equals(target.getStatus())) {
             throw ApiException.badRequest("Usuário já está aprovado.");
         }
-        target.setStatus("approved");
+        target.setStatus(Status.UserAccount.APPROVED);
         target.setApprovedBy(actor.getId());
         target.setApprovedAt(OffsetDateTime.now());
         userRepository.save(target);
@@ -190,15 +177,15 @@ public class UserAdminService {
 
     @Transactional
     public void rejectUser(User actor, Long userId) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         User target = userRepository.findById(userId).orElse(null);
         if (target == null) {
             throw ApiException.notFound("Usuário não encontrado.");
         }
-        if ("rejected".equals(target.getStatus())) {
+        if (Status.UserAccount.REJECTED.equals(target.getStatus())) {
             throw ApiException.badRequest("Usuário já foi rejeitado.");
         }
-        target.setStatus("rejected");
+        target.setStatus(Status.UserAccount.REJECTED);
         target.setApprovedBy(actor.getId());
         target.setApprovedAt(OffsetDateTime.now());
         userRepository.save(target);
@@ -207,7 +194,7 @@ public class UserAdminService {
 
     @Transactional
     public void changeRole(User actor, Long userId, ChangeRoleRequest req) {
-        requireAdminEditor(actor);
+        authz.requireAdminEditor(actor);
         String role = req == null ? null : req.role();
         if (role == null || !Roles.ASSIGNABLE_ROLES.contains(role)) {
             throw ApiException.badRequest("Role inválido.");

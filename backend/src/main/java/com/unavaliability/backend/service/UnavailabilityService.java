@@ -8,6 +8,7 @@ import com.unavaliability.backend.dto.UnavailabilityDtos.ListResponse;
 import com.unavaliability.backend.dto.UnavailabilityDtos.UnavailabilityView;
 import com.unavaliability.backend.dto.UnavailabilityDtos.UpdateRequest;
 import com.unavaliability.backend.dto.UnavailabilityDtos.UsersOnLeave;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.exception.ApiException;
 import com.unavaliability.backend.models.*;
 import com.unavaliability.backend.repositories.ClienteRepository;
@@ -125,23 +126,25 @@ public class UnavailabilityService {
         u.setStartDate(start);
         u.setEndDate(end);
         u.setTotalDays(expectedDays);
-        u.setStatus("pending");
+        u.setStatus(Status.Unavailability.PENDING);
         unavailabilityRepository.save(u);
-        audit(u.getId(), "created", user,
+        audit(u.getId(), Status.AuditAction.CREATED, user,
                 "Solicitação criada (" + start + " a " + end + ", " + expectedDays + " dias úteis).");
     }
 
 
     private void checkOverlap(Long userId, LocalDate start, LocalDate end, Long excludeId) {
         List<Unavailability> existing =
-                unavailabilityRepository.findByUserIdAndStatusIn(userId, List.of("pending", "approved"));
+                unavailabilityRepository.findByUserIdAndStatusIn(userId,
+                        List.of(Status.Unavailability.PENDING, Status.Unavailability.APPROVED));
         for (Unavailability r : existing) {
             if (excludeId != null && excludeId.equals(r.getId())) {
                 continue;
             }
             boolean overlap = !start.isAfter(r.getEndDate()) && !r.getStartDate().isAfter(end);
             if (overlap) {
-                String statusLabel = "approved".equals(r.getStatus()) ? "aprovada" : "pendente";
+                String statusLabel =
+                        Status.Unavailability.APPROVED.equals(r.getStatus()) ? "aprovada" : "pendente";
                 throw ApiException.badRequest("Período se sobrepõe a uma solicitação " + statusLabel
                         + " (" + r.getStartDate() + " a " + r.getEndDate()
                         + "). Cancele ou aguarde a conclusão antes de solicitar um novo período sobreposto.");
@@ -177,7 +180,7 @@ public class UnavailabilityService {
     private List<Unavailability> activeRecords(LocalDate today) {
         return unavailabilityRepository
                 .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqualOrderByStartDateAsc(
-                        "approved", today, today);
+                        Status.Unavailability.APPROVED, today, today);
     }
 
 
@@ -187,7 +190,8 @@ public class UnavailabilityService {
                 && !Roles.SOCIO.equals(user.getRole())) {
             throw ApiException.forbidden("Acesso restrito a líderes e administradores.");
         }
-        List<Unavailability> pendings = unavailabilityRepository.findByStatusOrderByCreatedAtDesc("pending");
+        List<Unavailability> pendings =
+                unavailabilityRepository.findByStatusOrderByCreatedAtDesc(Status.Unavailability.PENDING);
         List<Unavailability> visible;
         if (Roles.isLider(user.getRole()) && !Roles.isAdmin(user.getRole())) {
             visible = filterForLider(user, pendings);
@@ -275,7 +279,7 @@ public class UnavailabilityService {
         if (record == null) {
             throw ApiException.notFound("Solicitação não encontrado.");
         }
-        if (!"pending".equals(record.getStatus())) {
+        if (!Status.Unavailability.PENDING.equals(record.getStatus())) {
             throw ApiException.badRequest("Apenas solicitações pendentes podem ser editadas.");
         }
         if (!record.getUserId().equals(user.getId()) && !Roles.isAdminEditor(user.getRole())) {
@@ -321,7 +325,7 @@ public class UnavailabilityService {
             throw ApiException.notFound("Solicitação não encontrado.");
         }
         if (!Roles.isAdminEditor(user.getRole())) {
-            if (!"pending".equals(record.getStatus())) {
+            if (!Status.Unavailability.PENDING.equals(record.getStatus())) {
                 throw ApiException.badRequest("Apenas solicitações pendentes podem ser canceladas.");
             }
             if (!record.getUserId().equals(user.getId())) {
@@ -335,22 +339,22 @@ public class UnavailabilityService {
     @Transactional
     public void approve(User approver, Long id) {
         Unavailability record = loadPendingForReview(approver, id, "aprovar");
-        record.setStatus("approved");
+        record.setStatus(Status.Unavailability.APPROVED);
         record.setReviewedBy(approver.getId());
         record.setReviewedAt(java.time.OffsetDateTime.now());
         unavailabilityRepository.save(record);
-        audit(record.getId(), "approved", approver, "Solicitação aprovada.");
+        audit(record.getId(), Status.AuditAction.APPROVED, approver, "Solicitação aprovada.");
     }
 
 
     @Transactional
     public void reject(User approver, Long id) {
         Unavailability record = loadPendingForReview(approver, id, "rejeitar");
-        record.setStatus("rejected");
+        record.setStatus(Status.Unavailability.REJECTED);
         record.setReviewedBy(approver.getId());
         record.setReviewedAt(java.time.OffsetDateTime.now());
         unavailabilityRepository.save(record);
-        audit(record.getId(), "rejected", approver, "Solicitação rejeitada.");
+        audit(record.getId(), Status.AuditAction.REJECTED, approver, "Solicitação rejeitada.");
     }
 
 
@@ -363,7 +367,7 @@ public class UnavailabilityService {
         if (record == null) {
             throw ApiException.notFound("Solicitação não encontrado.");
         }
-        if (!"approved".equals(record.getStatus())) {
+        if (!Status.Unavailability.APPROVED.equals(record.getStatus())) {
             throw ApiException.badRequest("Apenas solicitações aprovadas podem ser canceladas ou encurtadas.");
         }
         if (Roles.isLider(actor.getRole()) && !Roles.isAdminEditor(actor.getRole()) && !canApprove(actor, record)) {
@@ -376,7 +380,7 @@ public class UnavailabilityService {
         String corpo;
 
         if (newEndDate == null) {
-            record.setStatus("canceled");
+            record.setStatus(Status.Unavailability.CANCELED);
             detalhe = "Período cancelado por " + actor.getNome() + ".";
             assunto = "Sua indisponibilidade foi cancelada";
             corpo = "Olá " + record.getFullName() + ",\n\n"
@@ -384,7 +388,7 @@ public class UnavailabilityService {
                     + record.getEndDate() + ") foi CANCELADO por " + actor.getNome() + ".\n"
                     + "Os dias voltam para sua cota. Em caso de dúvida, procure seu líder.\n";
             unavailabilityRepository.save(record);
-            audit(record.getId(), "canceled", actor, detalhe);
+            audit(record.getId(), Status.AuditAction.CANCELED, actor, detalhe);
         } else {
             if (newEndDate.isBefore(record.getStartDate())) {
                 throw ApiException.badRequest("A nova data de retorno não pode ser anterior ao início.");
@@ -404,7 +408,7 @@ public class UnavailabilityService {
                     + "Nova data de retorno: " + newEndDate + " (antes era " + fimAntigo + ").\n"
                     + "Total de dias úteis agora: " + novosDias + ". O excedente volta para sua cota.\n";
             unavailabilityRepository.save(record);
-            audit(record.getId(), "shortened", actor, detalhe);
+            audit(record.getId(), Status.AuditAction.SHORTENED, actor, detalhe);
         }
 
         emailService.send(ownerEmail, assunto, corpo);
@@ -432,7 +436,7 @@ public class UnavailabilityService {
         if (!canApprove(approver, record)) {
             throw ApiException.forbidden("Você não tem permissão para " + verb + " esta solicitação.");
         }
-        if (!"pending".equals(record.getStatus())) {
+        if (!Status.Unavailability.PENDING.equals(record.getStatus())) {
             throw ApiException.badRequest("Solicitação já foi revisada.");
         }
         return record;
@@ -480,7 +484,7 @@ public class UnavailabilityService {
         LocalDate yearEnd = LocalDate.of(y, 12, 31);
         return unavailabilityRepository
                 .findByUserIdAndStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-                        userId, "approved", yearEnd, yearStart)
+                        userId, Status.Unavailability.APPROVED, yearEnd, yearStart)
                 .stream()
                 .mapToInt(u -> u.getTotalDays() != null ? u.getTotalDays() : 0)
                 .sum();

@@ -8,7 +8,7 @@ import com.unavaliability.backend.dto.AnalyticsDtos.RankingConflito;
 import com.unavaliability.backend.dto.AnalyticsDtos.SemanaForecast;
 import com.unavaliability.backend.dto.AnalyticsDtos.TaxaAprovacao;
 import com.unavaliability.backend.dto.AnalyticsDtos.TempoMedioAprovacao;
-import com.unavaliability.backend.exception.ApiException;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.models.Cliente;
 import com.unavaliability.backend.models.Evento;
 import com.unavaliability.backend.models.EventoCliente;
@@ -21,7 +21,7 @@ import com.unavaliability.backend.repositories.EventoRepository;
 import com.unavaliability.backend.repositories.UnavailabilityRepository;
 import com.unavaliability.backend.repositories.UserClienteRepository;
 import com.unavaliability.backend.repositories.UserRepository;
-import com.unavaliability.backend.security.Roles;
+import com.unavaliability.backend.security.AuthorizationService;
 import com.unavaliability.backend.util.BusinessDays;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,28 +48,25 @@ public class AnalyticsService {
     private final EventoRepository eventoRepository;
     private final EventoClienteRepository eventoClienteRepository;
     private final ClienteRepository clienteRepository;
+    private final AuthorizationService authz;
 
     public AnalyticsService(UnavailabilityRepository unavailabilityRepository, UserRepository userRepository,
                             UserClienteRepository userClienteRepository, EventoRepository eventoRepository,
-                            EventoClienteRepository eventoClienteRepository, ClienteRepository clienteRepository) {
+                            EventoClienteRepository eventoClienteRepository, ClienteRepository clienteRepository,
+                            AuthorizationService authz) {
         this.unavailabilityRepository = unavailabilityRepository;
         this.userRepository = userRepository;
         this.userClienteRepository = userClienteRepository;
         this.eventoRepository = eventoRepository;
         this.eventoClienteRepository = eventoClienteRepository;
         this.clienteRepository = clienteRepository;
-    }
-
-    private void requireViewAll(User actor) {
-        if (!Roles.canViewAll(actor.getRole())) {
-            throw ApiException.forbidden("Acesso restrito a administradores.");
-        }
+        this.authz = authz;
     }
 
 
     @Transactional(readOnly = true)
     public DashboardAnalitico dashboard(User actor, LocalDate de, LocalDate ate) {
-        requireViewAll(actor);
+        authz.requireCanViewAll(actor);
         if (de == null) {
             de = LocalDate.now().withDayOfYear(1);
         }
@@ -78,7 +75,8 @@ public class AnalyticsService {
         }
 
         List<Unavailability> aprovadas = unavailabilityRepository
-                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual("approved", ate, de);
+                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+                        Status.Unavailability.APPROVED, ate, de);
 
         List<Unavailability> noPeriodo = unavailabilityRepository.findByCreatedAtBetween(
                 de.atStartOfDay().atOffset(ZoneOffset.UTC),
@@ -125,9 +123,12 @@ public class AnalyticsService {
 
     TaxaAprovacao taxaAprovacao(List<Unavailability> registros) {
         long total = registros.size();
-        long aprovadas = registros.stream().filter(u -> "approved".equals(u.getStatus())).count();
-        long rejeitadas = registros.stream().filter(u -> "rejected".equals(u.getStatus())).count();
-        long pendentes = registros.stream().filter(u -> "pending".equals(u.getStatus())).count();
+        long aprovadas = registros.stream()
+                .filter(u -> Status.Unavailability.APPROVED.equals(u.getStatus())).count();
+        long rejeitadas = registros.stream()
+                .filter(u -> Status.Unavailability.REJECTED.equals(u.getStatus())).count();
+        long pendentes = registros.stream()
+                .filter(u -> Status.Unavailability.PENDING.equals(u.getStatus())).count();
         long revisadas = aprovadas + rejeitadas;
         double taxa = revisadas == 0 ? 0.0 : Math.round((aprovadas * 10000.0) / revisadas) / 100.0;
         return new TaxaAprovacao(total, aprovadas, rejeitadas, pendentes, taxa);
@@ -151,7 +152,8 @@ public class AnalyticsService {
 
     List<RankingConflito> rankingConflitos(LocalDate de, LocalDate ate) {
         List<Unavailability> aprovadas = unavailabilityRepository
-                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual("approved", ate, de);
+                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+                        Status.Unavailability.APPROVED, ate, de);
         if (aprovadas.isEmpty()) {
             return List.of();
         }
@@ -217,13 +219,14 @@ public class AnalyticsService {
 
     @Transactional(readOnly = true)
     public ForecastResponse forecast(User actor, int semanas, LocalDate hoje) {
-        requireViewAll(actor);
+        authz.requireCanViewAll(actor);
         int n = Math.min(Math.max(semanas, 1), 26);
         LocalDate inicio = hoje;
         LocalDate fim = hoje.plusWeeks(n);
 
         List<Unavailability> aprovadas = unavailabilityRepository
-                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual("approved", fim, inicio);
+                .findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+                        Status.Unavailability.APPROVED, fim, inicio);
         Map<Long, User> userById = new HashMap<>();
         Set<Long> ids = new HashSet<>();
         aprovadas.forEach(u -> ids.add(u.getUserId()));

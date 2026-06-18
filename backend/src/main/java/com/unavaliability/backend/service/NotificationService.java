@@ -1,6 +1,7 @@
 package com.unavaliability.backend.service;
 
 import com.unavaliability.backend.dto.UnavailabilityDtos.UnavailabilityView;
+import com.unavaliability.backend.domain.Status;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.UserRepository;
 import com.unavaliability.backend.security.Roles;
@@ -29,7 +30,7 @@ public class NotificationService {
         List<NotificationItem> items = new ArrayList<>();
 
         if (Roles.isAdminEditor(user.getRole())) {
-            for (User u : userRepository.findByStatus("pending")) {
+            for (User u : userRepository.findByStatus(Status.UserAccount.PENDING)) {
                 String title = u.getNome() != null ? u.getNome() : u.getEmail();
                 items.add(new NotificationItem(
                         "user-" + u.getId(), "pending_user", title,
