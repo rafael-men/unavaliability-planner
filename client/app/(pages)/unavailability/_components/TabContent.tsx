@@ -7,16 +7,22 @@ import { UnavailList } from '../../../components/UnavailList';
 import { UnavailForm } from '../../../components/UnavailForm';
 import { Skeleton } from '../../../components/Skeleton';
 import { API } from '../../../lib/api-client';
+import type { UnavailabilityRecord, Evento } from '../../../lib/types';
 import { useAuth, useToast } from '../../../providers';
 import { OverviewContent } from './OverviewContent';
 import { PendingContent } from './PendingContent';
 import { AllHistoryContent } from './AllHistoryContent';
 
+type TabData =
+  | { data: UnavailabilityRecord[]; truncated: boolean; eventos?: Evento[] }
+  | UnavailabilityRecord[]
+  | null;
+
 interface Props {
   tabKey: string;
   reloadKey: number;
   onReload: () => void;
-  onEdit: (item: any) => void;
+  onEdit: (item: UnavailabilityRecord) => void;
   onDelete: (id: number) => void;
 }
 
@@ -24,16 +30,16 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
   const { user } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<TabData>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        let res: any = null;
+        let res: TabData = null;
         if (tabKey === 'overview') {
-          const [unav, ev] = await Promise.all([API.getUnavailability(), API.getEventosPublic().catch(() => ({ eventos: [] }))]);
+          const [unav, ev] = await Promise.all([API.getUnavailability(), API.getEventosPublic().catch(() => ({ eventos: [] as Evento[] }))]);
           res = { ...unav, eventos: ev.eventos };
         }
         else if (tabKey === 'all') res = await API.getUnavailability();
@@ -41,8 +47,8 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
         else if (tabKey === 'active') res = await API.getActiveUnavailability();
         else if (tabKey === 'mine') res = await API.getMyUnavailability();
         if (!cancelled) setData(res);
-      } catch (e: any) {
-        if (!cancelled) toast.show(e.message, 'error');
+      } catch (e: unknown) {
+        if (!cancelled) toast.show(e instanceof Error ? e.message : 'Erro', 'error');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,24 +59,26 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
 
   async function approve(id: number) {
     try { await API.approveUnavailability(id); toast.show('Solicitação aprovada!'); onReload(); }
-    catch (e: any) { toast.show(e.message, 'error'); }
+    catch (e: unknown) { toast.show(e instanceof Error ? e.message : 'Erro', 'error'); }
   }
   async function reject(id: number) {
     try { await API.rejectUnavailability(id); toast.show('Solicitação rejeitada.'); onReload(); }
-    catch (e: any) { toast.show(e.message, 'error'); }
+    catch (e: unknown) { toast.show(e instanceof Error ? e.message : 'Erro', 'error'); }
   }
 
   if (tabKey === 'form') return <UnavailForm user={user!} onSubmitted={onReload} />;
   if (loading) return <Skeleton rows={4} />;
 
   if (tabKey === 'overview') {
-    return <OverviewContent all={data?.data || []} eventos={data?.eventos || []} onApprove={approve} onReject={reject} />;
+    const obj = data && !Array.isArray(data) ? data : { data: [], truncated: false };
+    return <OverviewContent all={obj.data} eventos={obj.eventos || []} onApprove={approve} onReject={reject} />;
   }
 
   if (tabKey === 'pending') {
+    const list = Array.isArray(data) ? data : [];
     return (
       <PendingContent
-        items={data || []}
+        items={list}
         onApprove={approve}
         onReject={reject}
         onEdit={onEdit}
@@ -81,7 +89,7 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
   }
 
   if (tabKey === 'active') {
-    const list = (data || []) as any[];
+    const list = Array.isArray(data) ? data : [];
     if (!list.length) return <Card className="text-center text-[var(--text-muted)] py-10">Nenhuma indisponibilidade ativa.</Card>;
     return (
       <>
@@ -97,13 +105,14 @@ export function TabContent({ tabKey, reloadKey, onReload, onEdit, onDelete }: Pr
   }
 
   if (tabKey === 'mine') {
-    const list = (data || []) as any[];
+    const list = Array.isArray(data) ? data : [];
     if (!list.length) return <Card className="text-center text-[var(--text-muted)] py-10">Você não tem solicitações.</Card>;
     return <UnavailList items={list} currentUser={user!} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />;
   }
 
   if (tabKey === 'all') {
-    return <AllHistoryContent all={data?.data || []} truncated={data?.truncated} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />;
+    const obj = data && !Array.isArray(data) ? data : { data: [], truncated: false };
+    return <AllHistoryContent all={obj.data} truncated={obj.truncated} onEdit={onEdit} onDelete={onDelete} onChanged={onReload} />;
   }
 
   return null;

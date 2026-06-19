@@ -8,6 +8,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { API } from '../../../../lib/api-client';
 import { ROLE_LABELS, CREATABLE_ROLES } from '../../../../lib/client-config';
+import type { Role } from '../../../../lib/types';
 import { useToast } from '../../../../providers';
 
 interface Props {
@@ -24,7 +25,7 @@ export function CreateUserDialog({ visible, onHide, onSaved, setores }: Props) {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [dept, setDept] = useState<string | null>(null);
-  const [role, setRole] = useState('colaborador');
+  const [role, setRole] = useState<Role>('colaborador');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -77,7 +78,7 @@ export function CreateUserDialog({ visible, onHide, onSaved, setores }: Props) {
           <Dropdown
             value={role}
             options={CREATABLE_ROLES.map((r) => ({ label: ROLE_LABELS[r] || r, value: r }))}
-            onChange={(e) => setRole(e.value)}
+            onChange={(e) => setRole(e.value as Role)}
             className="w-full"
           />
         </div>

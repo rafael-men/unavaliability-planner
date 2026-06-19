@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../providers';
 import { API } from '../lib/api-client';
-import { ROLE_LABELS, isAdminRole, isMasterAdminRole } from '../lib/client-config';
+import { ROLE_LABELS, isAdminRole, isMasterAdminRole, isEditorRole } from '../lib/client-config';
 import { Calendar, Users, Building2, ClipboardList, LogOut, User, Briefcase, CalendarRange, CalendarCheck, Menu, X, Ticket, LucideIcon } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 
@@ -27,7 +28,7 @@ export function Navbar() {
   const roleLabel = ROLE_LABELS[user.role] || user.role;
   const showAdminBtns = isAdminRole(user.role);
   const isMaster = isMasterAdminRole(user.role);
-  const isEditor = user.role === 'admin_master' || user.role === 'admin_editor';
+  const isEditor = isEditorRole(user.role);
 
   const items: NavItem[] = [
     { label: 'Usuários', href: '/admin/users', icon: Users, show: showAdminBtns },
@@ -57,16 +58,16 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-[var(--border)]">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-9 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => router.push('/unavailability')}
+          <Link
+            href="/unavailability"
             className="flex items-center gap-2 text-base font-extrabold tracking-tight min-w-0"
             aria-label="Ir para Indisponibilidade"
           >
-            <CalendarCheck size={22} className="text-[var(--accent)] shrink-0" />
+            <CalendarCheck size={22} className="text-[var(--accent)] shrink-0" aria-hidden="true" />
             <span className="bg-gradient-to-br from-[var(--accent)] to-blue-300 bg-clip-text text-transparent truncate">
               Indisponibilidade
             </span>
-          </button>
+          </Link>
           <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/25">
             {roleLabel}
           </span>
@@ -77,9 +78,9 @@ export function Navbar() {
             <User size={14} /> {user.full_name}
           </span>
           {items.map((it) => (
-            <button key={it.href} onClick={() => router.push(it.href)} className={navBtn(pathname.startsWith(it.href))}>
-              <it.icon size={14} /> {it.label}
-            </button>
+            <Link key={it.href} href={it.href} className={navBtn(pathname.startsWith(it.href))}>
+              <it.icon size={14} aria-hidden="true" /> {it.label}
+            </Link>
           ))}
           <NotificationBell />
           <button onClick={doLogout} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors">
@@ -110,17 +111,17 @@ export function Navbar() {
             {items.map((it) => {
               const active = pathname.startsWith(it.href);
               return (
-                <button
+                <Link
                   key={it.href}
-                  onClick={() => router.push(it.href)}
+                  href={it.href}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     active
                       ? 'bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30'
                       : 'text-foreground hover:bg-[var(--surface2)] border border-transparent'
                   }`}
                 >
-                  <it.icon size={16} /> {it.label}
-                </button>
+                  <it.icon size={16} aria-hidden="true" /> {it.label}
+                </Link>
               );
             })}
             <button onClick={doLogout} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--surface2)] transition-colors mt-1">

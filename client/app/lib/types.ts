@@ -57,13 +57,13 @@ export interface Evento {
 export interface Member {
   id: number;
   name: string;
-  email: string;
+  email?: string | null;
   area?: string | null;
   squad?: string | null;
   funcao?: string | null;
   report_to?: string | null;
-  operacoes?: boolean | null;
-  day_offs_quota?: number | null;
+  operacoes?: boolean;
+  day_offs_quota?: number;
 }
 
 export interface EventConflict {

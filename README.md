@@ -180,6 +180,61 @@ Solicitações & tickets:
 | `GET` | `/api/admin/tickets?onlyOpen=` | Lista tickets de senha (admin). |
 | `POST` | `/api/admin/tickets/{id}/resolve` | Define a nova senha e envia por e-mail (admin). |
 
+## Docker
+
+### Pré-requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
+- Arquivo `backend/.env` criado conforme a seção **Como rodar → Backend** acima.
+
+### Subindo o ambiente
+
+```bash
+docker compose up --build
+```
+
+Isso constrói as imagens e sobe dois contêineres:
+
+| Serviço | Porta | Descrição |
+| ------- | ----- | --------- |
+| `backend` | `8080` | API Java / Spring Boot |
+| `frontend` | `3000` | Next.js |
+
+O frontend só sobe após o backend passar no healthcheck (`GET /api/health`), então aguarde alguns segundos na primeira vez.
+
+Acesse a aplicação em **`http://localhost:3000`**.
+
+### Parar / derrubar
+
+```bash
+docker compose down          # para e remove os contêineres
+docker compose down -v       # idem + remove volumes
+```
+
+### Variáveis de ambiente em produção
+
+O `docker-compose.yml` injeta automaticamente `BACKEND_API_URL=http://backend:8080` no frontend (comunicação interna Docker). Não é necessário configurar nada extra além do `backend/.env`.
+
+Para sobrescrever portas ou variáveis, use um arquivo `docker-compose.override.yml` ou passe via linha de comando:
+
+```bash
+BACKEND_API_URL=http://meu-backend:8080 docker compose up
+```
+
+### Builds individuais
+
+Se preferir construir as imagens separadamente:
+
+```bash
+# Backend
+docker build -t unavail-backend ./backend
+
+# Frontend
+docker build -t unavail-frontend ./client
+```
+
+Cada Dockerfile usa **multi-stage build**: apenas o artefato final (JAR no backend; build standalone do Next.js no frontend) entra na imagem de runtime, mantendo as imagens enxutas.
+
 ## Testes
 
 ```bash

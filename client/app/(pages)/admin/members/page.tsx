@@ -219,7 +219,7 @@ function MemberDialog({ visible, onHide, member, members, setores, onSaved }: { 
     try {
       const data = {
         name: form.name,
-        email: form.email || null,
+        email: form.email || undefined,
         area: form.area,
         funcao: form.funcao,
         squad: form.squad || null,

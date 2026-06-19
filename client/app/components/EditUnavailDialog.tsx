@@ -7,19 +7,20 @@ import { Calendar as PrimeCalendar } from 'primereact/calendar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { API } from '../lib/api-client';
+import type { UnavailabilityRecord } from '../lib/types';
 import { UNAVAIL_TYPES, countBusinessDays, getMinRequestDate } from '../lib/client-config';
 import { useToast } from '../providers';
 
 interface Props {
   visible: boolean;
   onHide: () => void;
-  record: any;
+  record: UnavailabilityRecord | null;
   onSaved: () => void;
 }
 
 export function EditUnavailDialog({ visible, onHide, record, onSaved }: Props) {
   const toast = useToast();
-  const [type, setType] = useState<string | null>(null);
+  const [type, setType] = useState<'prolongado' | 'pontual' | null>(null);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [days, setDays] = useState<number>(0);
@@ -68,13 +69,13 @@ export function EditUnavailDialog({ visible, onHide, record, onSaved }: Props) {
       await API.updateUnavailability(record.id, {
         start_date: toIsoDate(startDate),
         end_date: toIsoDate(endDate),
-        unavailability_type: type,
+        unavailability_type: type ?? undefined,
       });
       toast.show('Solicitação atualizada!');
       onSaved();
       onHide();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro desconhecido');
     } finally {
       setSaving(false);
     }

@@ -6,9 +6,9 @@ import { DEPT_COLORS, formatDateShort } from '../../../lib/client-config';
 
 interface Item {
   id: number;
-  user_name?: string;
-  full_name?: string;
-  department: string;
+  user_name?: string | null;
+  full_name?: string | null;
+  department?: string | null;
   start_date: string;
   end_date: string;
 }
@@ -23,7 +23,7 @@ export function ActiveTimeline({ items }: { items: Item[] }) {
       </h3>
       <div className="flex flex-wrap gap-2.5">
         {items.map((item) => {
-          const deptColor = DEPT_COLORS[item.department] || 'var(--accent)';
+          const deptColor = (item.department ? DEPT_COLORS[item.department] : null) || 'var(--accent)';
           const daysLeft = Math.ceil((new Date(item.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) + 1;
           return (
             <div

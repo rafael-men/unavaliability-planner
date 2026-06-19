@@ -19,7 +19,7 @@ interface Props {
 export function UnavailForm({ user, onSubmitted }: Props) {
   const { setores } = useSetores();
   const toast = useToast();
-  const [type, setType] = useState<string | null>(null);
+  const [type, setType] = useState<'prolongado' | 'pontual' | null>(null);
   const [department, setDepartment] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -39,8 +39,8 @@ export function UnavailForm({ user, onSubmitted }: Props) {
   useEffect(() => {
     API.getMyMemberInfo().then((info) => {
       setMemberInfo(info);
-      if (info?.member?.area && setores.includes(info.member.area)) {
-        setDepartment(info.member.area);
+      if (info?.area && setores.includes(info.area)) {
+        setDepartment(info.area);
       } else if (user.department && setores.includes(user.department)) {
         setDepartment(user.department);
       }
@@ -108,7 +108,6 @@ export function UnavailForm({ user, onSubmitted }: Props) {
         department,
         start_date: startStr,
         end_date: toIsoDate(endDate),
-        total_days: days,
       });
       toast.show('Solicitação enviada com sucesso!');
       onSubmitted?.();

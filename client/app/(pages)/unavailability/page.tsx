@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import React from 'react';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Calendar, Clock, CircleCheck, Plus, FileText, History } from 'lucide-react';
@@ -9,6 +10,7 @@ import { withAuth } from '../../components/withAuth';
 import { EditUnavailDialog } from '../../components/EditUnavailDialog';
 import { API } from '../../lib/api-client';
 import { canViewAllRole, isLiderRole } from '../../lib/client-config';
+import type { UnavailabilityRecord } from '../../lib/types';
 import { useAuth, useToast } from '../../providers';
 import { KpiStrip } from './_components/KpiStrip';
 import { ActiveTimeline } from './_components/ActiveTimeline';
@@ -19,11 +21,13 @@ function UnavailPage() {
   const { user } = useAuth();
   const toast = useToast();
 
-  const isAdmin = canViewAllRole(user!.role);
-  const canSeePending = isLiderRole(user!.role);
+  if (!user) return null;
+
+  const isAdmin = canViewAllRole(user.role);
+  const canSeePending = isLiderRole(user.role);
 
   const [activeTab, setActiveTab] = useState(0);
-  const [editRecord, setEditRecord] = useState<any>(null);
+  const [editRecord, setEditRecord] = useState<UnavailabilityRecord | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -34,7 +38,7 @@ function UnavailPage() {
 
   const { kpis, active } = useKpis(isAdmin, reloadKey);
 
-  const tabs: { key: string; show: boolean; label: string; icon: any }[] = [
+  const tabs: { key: string; show: boolean; label: string; icon: React.ElementType }[] = [
     { key: 'overview', show: isAdmin, label: 'Painel Geral', icon: Calendar },
     { key: 'pending', show: canSeePending, label: 'Pedidos Aguardando', icon: Clock },
     { key: 'active', show: isAdmin, label: 'Indisponíveis Agora', icon: CircleCheck },
@@ -44,7 +48,7 @@ function UnavailPage() {
   ];
   const visibleTabs = tabs.filter((t) => t.show);
 
-  function handleEdit(item: any) {
+  function handleEdit(item: UnavailabilityRecord) {
     setEditRecord(item);
     setEditVisible(true);
   }
@@ -59,8 +63,8 @@ function UnavailPage() {
           await API.deleteUnavailability(id);
           toast.show('Solicitação cancelada.');
           reload();
-        } catch (e: any) {
-          toast.show(e.message, 'error');
+        } catch (e: unknown) {
+          toast.show(e instanceof Error ? e.message : 'Erro', 'error');
         }
       },
     });

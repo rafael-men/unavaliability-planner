@@ -59,8 +59,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res: any = await API.me();
-      setUser(res.user);
+      const res = await API.me();
+      setUser(res.user as AppUser);
     } catch {
       setUser(null);
     }

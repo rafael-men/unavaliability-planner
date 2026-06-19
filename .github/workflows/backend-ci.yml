@@ -1,0 +1,75 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        working-directory: backend
+        run: ./mvnw verify -q "-Dtest=!BackendApplicationTests" "-Dit.test=!BackendApplicationTests"
+        env:
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+          SUPABASE_DB_USER: sa
+          SUPABASE_DB_PASSWORD: ""
+          SUPABASE_SCHEMA: public
+          SPRING_DATASOURCE_POOL_SIZE: "2"
+          SESSION_SECRET: ci-test-secret-not-used-in-prod
+          MAIL_HOST: ""
+          MAIL_PORT: "587"
+          MAIL_USERNAME: ""
+          MAIL_PASSWORD: ""
+          MAIL_FROM: ""
+
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/unavaliability-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/unavaliability-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
