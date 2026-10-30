@@ -12,6 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
+    long countByStatus(String status);
     List<User> findByStatus(String status);
     List<User> findByRoleInAndDepartmentAndStatus(List<String> roles, String department, String status);
     @Query("select u from User u where u.role = 'lider' and u.department = :department and u.status = 'approved'")

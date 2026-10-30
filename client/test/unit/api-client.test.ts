@@ -38,6 +38,20 @@ describe('API.getSetores', () => {
   });
 });
 
+describe('API.getNotificationCount', () => {
+  it('consulta o endpoint leve de contagem', async () => {
+    mockFetch([{ status: 200, body: { count: 4 } }]);
+
+    const result = await API.getNotificationCount();
+
+    expect(result).toEqual({ count: 4 });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/notifications/count',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+});
+
 describe('API.login', () => {
   it('retorna user após login bem-sucedido', async () => {
     const user = { id: 1, email: 'a@b.com', full_name: 'Test', role: 'admin_master' };

@@ -184,23 +184,35 @@ public class UnavailabilityService {
     }
 
 
-    @Transactional(readOnly = true)
+    @Transactional (readOnly = true)
     public List<UnavailabilityView> pending(User user) {
-        if (!Roles.isAdmin(user.getRole()) && !Roles.isLider(user.getRole())
-                && !Roles.SOCIO.equals(user.getRole())) {
-            throw ApiException.forbidden("Acesso restrito a líderes e administradores.");
-        }
-        List<Unavailability> pendings =
-                unavailabilityRepository.findByStatusOrderByCreatedAtDesc(Status.Unavailability.PENDING);
-        List<Unavailability> visible;
-        if (Roles.isLider(user.getRole()) && !Roles.isAdmin(user.getRole())) {
-            visible = filterForLider(user, pendings);
-        } else {
-            visible = pendings;
-        }
+        List<Unavailability> visible = visiblePending(user);
         List<UnavailabilityView> views = enrichWithUser(visible);
         return attachEventConflicts(views);
     }
+
+    @Transactional(readOnly = true) 
+        public List<UnavailabilityView> pendingForNotifications(User user) {
+            return enrichWithUser(visiblePending(user));
+    }
+
+    private List<Unavailability> visiblePending(User user) {
+    if (!Roles.isAdmin(user.getRole()) && !Roles.isLider(user.getRole())
+            && !Roles.SOCIO.equals(user.getRole())) {
+        throw ApiException.forbidden("Acesso restrito a líderes e administradores.");
+    }
+
+    List<Unavailability> pendings =
+            unavailabilityRepository.findByStatusOrderByCreatedAtDesc(
+                    Status.Unavailability.PENDING);
+
+    if (Roles.isLider(user.getRole()) && !Roles.isAdmin(user.getRole())) {
+        return filterForLider(user, pendings);
+    }
+
+    return pendings;
+    } 
+    
 
     private List<Unavailability> filterForLider(User lider, List<Unavailability> pendings) {
         Member liderMember = lider.getEmail() == null ? null

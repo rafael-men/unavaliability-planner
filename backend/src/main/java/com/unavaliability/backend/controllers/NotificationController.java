@@ -23,4 +23,9 @@ public class NotificationController {
     public NotificationService.NotificationsResponse list() {
         return notificationService.list(currentUser.require());
     }
+
+    @GetMapping("/count")
+    public NotificationService.NotificationCountResponse count() {
+        return notificationService.count(currentUser.require());
+    }
 }

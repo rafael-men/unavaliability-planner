@@ -112,6 +112,9 @@ export const API = {
 
   getNotifications: () => request<{ items: NotificationItem[]; count: number }>('GET', '/api/notifications'),
 
+  getNotificationCount: () => request<{ count: number }>('GET', '/api/notifications/count'),
+
+
   getClientes: () => request<{ clientes: Cliente[]; links: { user_id: number; cliente_id: number; ativo: boolean }[] }>('GET', '/api/admin/clientes'),
   createCliente: (data: { nome: string; descricao?: string | null; ativo?: boolean }) =>
     request<Cliente>('POST', '/api/admin/clientes', data),

@@ -39,22 +39,40 @@ function saveSeenIds(ids: Set<string>) {
 export function NotificationBell() {
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => loadSeenIds());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const fetchItems = useCallback(async () => {
+  const fetchCount = useCallback(async () => {
     try {
-      const res = await API.getNotifications();
-      setItems(res.items || []);
+      const res = await API.getNotificationCount();
+      setPendingCount(res.count?? 0);
     } catch {}
   }, []);
 
   useEffect(() => {
-    fetchItems();
-    const id = setInterval(fetchItems, POLL_MS);
+    fetchCount();
+    const id = setInterval(fetchCount, POLL_MS);
     return () => clearInterval(id);
-  }, [fetchItems]);
+  }, [fetchCount]);
+
+  const fetchItems = useCallback(async () => {
+  setLoadingItems(true);
+
+  try {
+    const res = await API.getNotifications();
+    const fetched = res.items || [];
+
+    setItems(fetched);
+    setPendingCount(fetched.length);
+  } catch {
+    // mantém os itens atuais caso a abertura do dropdown falhe.
+  } finally {
+    setLoadingItems(false);
+  }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -67,8 +85,8 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
-  const unread = items.filter((i) => !seenIds.has(i.id));
-  const unreadCount = unread.length;
+  const unCount = items.length > 0 ? items.filter((i) => !seenIds.has(i.id)).length : pendingCount;
+  const unreadCount = unCount;
 
   function markAllSeen() {
     const next = new Set(seenIds);
@@ -80,10 +98,13 @@ export function NotificationBell() {
   function handleOpen() {
     const next = !open;
     setOpen(next);
-    if (next && unreadCount > 0) {
-      markAllSeen();
+    if (next) {
+      fetchItems();
+    } 
+      else if (items.length > 0 && unreadCount > 0) {
+        markAllSeen();
+      }
     }
-  }
 
   function handleClickItem(item: NotificationItem) {
     setOpen(false);
