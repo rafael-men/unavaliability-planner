@@ -126,10 +126,6 @@ function AdminSetoresPage() {
     } catch (e: any) { toast.show(e.message, 'error'); }
   }
 
-  if (loading) {
-    return <div className="min-h-screen"><Navbar /><div className="max-w-[1440px] mx-auto px-4 sm:px-9 py-8"><Skeleton rows={4} /></div></div>;
-  }
-
   const semSetor = useMemo(
     () => users.filter((u) => u.role !== ROLES.ADMIN_MASTER && (!u.department || !setores.includes(u.department))),
     [users, setores],
@@ -138,6 +134,10 @@ function AdminSetoresPage() {
     () => (addToSetor ? users.filter((u) => u.role !== ROLES.ADMIN_MASTER && u.department !== addToSetor) : []),
     [users, addToSetor],
   );
+
+  if (loading) {
+    return <div className="min-h-screen"><Navbar /><div className="max-w-[1440px] mx-auto px-4 sm:px-9 py-8"><Skeleton rows={4} /></div></div>;
+  }
 
   return (
     <div className="min-h-screen">

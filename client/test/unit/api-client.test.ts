@@ -91,8 +91,10 @@ describe('cache de GET', () => {
     await API.getUnavailability();
     await API.createUnavailability({
       unavailability_type: 'pontual',
+      department: 'Tecnologia',
       start_date: '2026-07-01',
       end_date: '2026-07-01',
+      total_days: 1,
     });
     await API.getUnavailability();
     expect(fetch).toHaveBeenCalledTimes(3);

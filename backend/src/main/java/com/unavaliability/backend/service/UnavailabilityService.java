@@ -214,33 +214,111 @@ public class UnavailabilityService {
     } 
     
 
-    private List<Unavailability> filterForLider(User lider, List<Unavailability> pendings) {
-        Member liderMember = lider.getEmail() == null ? null
-                : memberRepository.findByEmailIgnoreCase(lider.getEmail().toLowerCase()).orElse(null);
-        String liderName = liderMember != null ? liderMember.getName() : null;
 
-        List<Unavailability> out = new ArrayList<>();
-        for (Unavailability r : pendings) {
-            if (r.getUserId().equals(lider.getId())) {
-                continue;
-            }
-            User requester = userRepository.findById(r.getUserId()).orElse(null);
-            if (requester == null) {
-                continue;
-            }
-            if (lider.getDepartment() != null
-                    && lider.getDepartment().equals(requester.getDepartment())) {
-                out.add(r);
-                continue;
-            }
-            Member requesterMember = resolveMemberForUser(requester);
-            if (requesterMember != null && ReportToHelper.reportToMatchesLider(
-                    requesterMember.getReportTo(), lider.getEmail(), liderName)) {
-                out.add(r);
-            }
+    //carregamento em lote para melhora de performance
+    private List<Unavailability> filterForLider(User lider, List<Unavailability> pendings) {
+    Member liderMember = lider.getEmail() == null
+            ? null
+            : memberRepository
+                    .findByEmailIgnoreCase(lider.getEmail().toLowerCase())
+                    .orElse(null);
+
+    String liderName = liderMember != null
+            ? liderMember.getName()
+            : null;
+
+    Set<Long> requesterIds = new HashSet<>();
+
+    for (Unavailability record : pendings) {
+        if (record.getUserId() != null
+                && !record.getUserId().equals(lider.getId())) {
+            requesterIds.add(record.getUserId());
         }
-        return out;
     }
+
+    Map<Long, User> requestersById = new HashMap<>();
+
+    if (!requesterIds.isEmpty()) {
+        userRepository.findAllById(requesterIds)
+                .forEach(requester ->
+                        requestersById.put(requester.getId(), requester));
+    }
+
+    Set<Long> memberIds = new HashSet<>();
+    Set<String> requesterEmails = new HashSet<>();
+
+    for (User requester : requestersById.values()) {
+        if (requester.getMemberId() != null) {
+            memberIds.add(requester.getMemberId());
+        }
+
+        if (requester.getEmail() != null
+                && !requester.getEmail().isBlank()) {
+            requesterEmails.add(requester.getEmail().toLowerCase());
+        }
+    }
+
+    Map<Long, Member> membersById = new HashMap<>();
+
+    if (!memberIds.isEmpty()) {
+        memberRepository.findAllById(memberIds)
+                .forEach(member ->
+                        membersById.put(member.getId(), member));
+    }
+
+    Map<String, Member> membersByEmail = new HashMap<>();
+
+    if (!requesterEmails.isEmpty()) {
+        memberRepository.findByEmailInIgnoreCase(
+                        new ArrayList<>(requesterEmails))
+                .forEach(member ->
+                        membersByEmail.put(
+                                member.getEmail().toLowerCase(),
+                                member));
+    }
+
+    List<Unavailability> out = new ArrayList<>();
+
+    for (Unavailability record : pendings) {
+        if (record.getUserId().equals(lider.getId())) {
+            continue;
+        }
+
+        User requester = requestersById.get(record.getUserId());
+
+        if (requester == null) {
+            continue;
+        }
+
+        if (lider.getDepartment() != null
+                && lider.getDepartment().equals(requester.getDepartment())) {
+            out.add(record);
+            continue;
+        }
+
+        Member requesterMember = null;
+
+        if (requester.getMemberId() != null) {
+            requesterMember = membersById.get(requester.getMemberId());
+        }
+
+        if (requesterMember == null
+                && requester.getEmail() != null) {
+            requesterMember = membersByEmail.get(
+                    requester.getEmail().toLowerCase());
+        }
+
+        if (requesterMember != null
+                && ReportToHelper.reportToMatchesLider(
+                        requesterMember.getReportTo(),
+                        lider.getEmail(),
+                        liderName)) {
+            out.add(record);
+        }
+    }
+
+    return out;
+}
 
     private Member resolveMemberForUser(User requester) {
         Member m = null;

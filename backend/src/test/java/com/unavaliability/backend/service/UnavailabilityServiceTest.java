@@ -2,6 +2,7 @@ package com.unavaliability.backend.service;
 
 import com.unavaliability.backend.dto.UnavailabilityDtos.CreateRequest;
 import com.unavaliability.backend.exception.ApiException;
+import com.unavaliability.backend.models.Member;
 import com.unavaliability.backend.models.Unavailability;
 import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.ClienteRepository;
@@ -20,8 +21,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +35,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UnavailabilityService.create — validações de criação")
@@ -177,5 +181,98 @@ class UnavailabilityServiceTest {
         CreateRequest r = req("pontual", HOJE.plusDays(5), HOJE.plusDays(5), 1);
         assertThatThrownBy(() -> service.create(user, r, HOJE)).isInstanceOf(ApiException.class);
         verify(unavailabilityRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("filtragem de líder carrega usuários e membros em lote")
+    void filtraPendenciasDoLiderSemNMaisUm() {
+    User lider = new User();
+    lider.setId(1L);
+    lider.setRole("lider");
+    lider.setEmail("lider@empresa.com");
+    lider.setDepartment("Tecnologia");
+
+    Member liderMember = new Member();
+    liderMember.setId(10L);
+    liderMember.setName("Líder");
+    liderMember.setEmail("lider@empresa.com");
+
+    User requesterMesmoDepartamento = new User();
+    requesterMesmoDepartamento.setId(2L);
+    requesterMesmoDepartamento.setEmail("ana@empresa.com");
+    requesterMesmoDepartamento.setDepartment("Tecnologia");
+    requesterMesmoDepartamento.setMemberId(20L);
+
+    User requesterReportTo = new User();
+    requesterReportTo.setId(3L);
+    requesterReportTo.setEmail("bruno@empresa.com");
+    requesterReportTo.setDepartment("Operações");
+    requesterReportTo.setMemberId(30L);
+
+    Member memberMesmoDepartamento = new Member();
+    memberMesmoDepartamento.setId(20L);
+    memberMesmoDepartamento.setEmail("ana@empresa.com");
+    memberMesmoDepartamento.setReportTo(null);
+
+    Member memberReportTo = new Member();
+    memberReportTo.setId(30L);
+    memberReportTo.setEmail("bruno@empresa.com");
+    memberReportTo.setReportTo("lider@empresa.com");
+
+    Unavailability primeira = new Unavailability();
+    primeira.setId(101L);
+    primeira.setUserId(2L);
+    primeira.setStatus("pending");
+
+    Unavailability segunda = new Unavailability();
+    segunda.setId(102L);
+    segunda.setUserId(3L);
+    segunda.setStatus("pending");
+
+    Unavailability propria = new Unavailability();
+    propria.setId(103L);
+    propria.setUserId(1L);
+    propria.setStatus("pending");
+
+    when(memberRepository.findByEmailIgnoreCase("lider@empresa.com"))
+            .thenReturn(Optional.of(liderMember));
+
+    when(unavailabilityRepository.findByStatusOrderByCreatedAtDesc("pending"))
+            .thenReturn(List.of(primeira, segunda, propria));
+
+    when(userRepository.findAllById(any()))
+            .thenReturn(List.of(
+                    requesterMesmoDepartamento,
+                    requesterReportTo));
+
+    when(memberRepository.findAllById(any()))
+            .thenReturn(List.of(
+                    memberMesmoDepartamento,
+                    memberReportTo));
+
+    when(memberRepository.findByEmailInIgnoreCase(anyList()))
+            .thenReturn(List.of(
+                    memberMesmoDepartamento,
+                    memberReportTo));
+
+    List<?> result = service.pendingForNotifications(lider);
+
+    assertThat(result).hasSize(2);
+
+    verify(userRepository, times(2)).findAllById(any());
+    verify(memberRepository).findAllById(any());
+    verify(memberRepository).findByEmailInIgnoreCase(anyList());
+
+    verify(userRepository, never()).findById(2L);
+    verify(userRepository, never()).findById(3L);
+
+    verify(memberRepository, never()).findById(20L);
+    verify(memberRepository, never()).findById(30L);
+
+    verify(memberRepository, never())
+            .findByEmailIgnoreCase("ana@empresa.com");
+
+    verify(memberRepository, never())
+            .findByEmailIgnoreCase("bruno@empresa.com");
     }
 }

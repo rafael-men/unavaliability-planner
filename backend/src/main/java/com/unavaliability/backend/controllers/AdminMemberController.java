@@ -32,8 +32,7 @@ public class AdminMemberController {
 
     @GetMapping
     public List<Member> list() {
-        currentUser.require();
-        return memberService.listAll();
+        return memberService.listAll( currentUser.require());
     }
 
     @PostMapping

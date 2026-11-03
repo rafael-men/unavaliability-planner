@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: ${SPRING_DATASOURCE_URL}
-    username: ${SUPABASE_DB_USER}
-    password: ${SUPABASE_DB_PASSWORD}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${SPRING_DATASOURCE_POOL_SIZE}
@@ -13,8 +13,8 @@ spring:
 
   flyway:
     enabled: true
-    schemas: ${SUPABASE_SCHEMA}
-    default-schema: ${SUPABASE_SCHEMA}
+    schemas: ${DB_SCHEMA}
+    default-schema: ${DB_SCHEMA}
     create-schemas: true
     baseline-on-migrate: true
     baseline-version: 0
@@ -26,7 +26,7 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        default_schema: ${SUPABASE_SCHEMA}
+        default_schema: ${DB_SCHEMA}
         format_sql: true
         jdbc:
           lob:
@@ -35,10 +35,10 @@ spring:
 
 
   mail:
-    host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: ${RESEND_HOST}
+    port: ${RESEND_PORT:587}
+    username: ${RESEND_USER}
+    password: ${RESEND_API_KEY}
     properties:
       mail:
         smtp:
@@ -57,7 +57,7 @@ app:
   cors:
     allowed-origins: http://localhost:3000
   mail:
-    from: ${MAIL_FROM:}
+    from: ${RESEND_FROM}
   security:
     require-https: false
     hsts-max-age-seconds: 31536000

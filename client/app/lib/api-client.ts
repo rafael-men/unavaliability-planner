@@ -136,7 +136,7 @@ export const API = {
   updateMember: (id: number, data: Partial<Omit<Member, 'id'>>) => request<Member>('PUT', `/api/admin/members/${id}`, data),
   deleteMember: (id: number) => request<void>('DELETE', `/api/admin/members/${id}`),
 
-  createUnavailability: (data: Pick<UnavailabilityRecord, 'unavailability_type' | 'start_date' | 'end_date'> & { department?: string }) =>
+  createUnavailability: (data: Pick<UnavailabilityRecord, 'unavailability_type' | 'department' | 'start_date' | 'end_date' | 'total_days'>) =>
     request<UnavailabilityRecord>('POST', '/api/unavailability', data),
   updateUnavailability: (id: number, data: Partial<Pick<UnavailabilityRecord, 'start_date' | 'end_date' | 'unavailability_type'>>) =>
     request<UnavailabilityRecord>('PATCH', `/api/unavailability/${id}`, data),

@@ -22,7 +22,7 @@ export default function RootLayout({
          <link rel="preconnect" href="https://fonts.googleapis.com"/>
          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
          <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap" rel="stylesheet"/>
-         <link href="/icon.png" rel="icon" />
+         <link href="/logo.png" rel="icon" />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased flex flex-col">
         <Providers>

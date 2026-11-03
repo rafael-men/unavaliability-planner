@@ -108,6 +108,7 @@ export function UnavailForm({ user, onSubmitted }: Props) {
         department,
         start_date: startStr,
         end_date: toIsoDate(endDate),
+        total_days: days,
       });
       toast.show('Solicitação enviada com sucesso!');
       onSubmitted?.();

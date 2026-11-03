@@ -1,6 +1,7 @@
 package com.unavaliability.backend.controllers;
 
 import com.unavaliability.backend.models.Member;
+import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.security.CurrentUserProvider;
 import com.unavaliability.backend.service.MemberService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +28,7 @@ public class MemberController {
 
     @GetMapping
     public List<Member> list() {
-        currentUser.require();
-        return memberService.listAll();
+        return memberService.listAll(currentUser.require());
     }
 
     @GetMapping("/me")
@@ -38,8 +38,8 @@ public class MemberController {
 
     @GetMapping("/by-email/{email}")
     public MemberService.MemberByEmailView byEmail(@PathVariable String email) {
-        currentUser.require();
-        String decoded = URLDecoder.decode(email, StandardCharsets.UTF_8);
-        return memberService.byEmail(decoded);
+       User actor = currentUser.require();
+       String emailDec = URLDecoder.decode(email, StandardCharsets.UTF_8);
+       return memberService.byEmail(actor, emailDec);
     }
 }

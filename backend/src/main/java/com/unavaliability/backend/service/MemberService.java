@@ -7,6 +7,7 @@ import com.unavaliability.backend.models.User;
 import com.unavaliability.backend.repositories.MemberRepository;
 import com.unavaliability.backend.repositories.UserRepository;
 import com.unavaliability.backend.security.AuthorizationService;
+import com.unavaliability.backend.security.Roles;
 import com.unavaliability.backend.util.TextUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,8 @@ public class MemberService {
 
 
     @Transactional(readOnly = true)
-    public List<Member> listAll() {
+    public List<Member> listAll(User actor) {
+        authz.requireAdmin(actor);
         return memberRepository.findAllByOrderByNameAsc();
     }
 
@@ -127,20 +129,89 @@ public class MemberService {
 
 
     @Transactional(readOnly = true)
-    public MemberByEmailView byEmail(String email) {
-        Member member = memberRepository.findByEmailIgnoreCase(email).orElse(null);
-        if (member == null) {
-            throw ApiException.notFound("Membro não encontrado.");
+    public MemberByEmailView byEmail(User actor, String email) {
+    String targetEmail = email == null
+            ? null
+            : email.trim().toLowerCase();
+
+    Member member = targetEmail == null
+            ? null
+            : memberRepository.findByEmailIgnoreCase(targetEmail).orElse(null);
+
+    if (member == null) {
+        if (!isOwnEmail(actor, targetEmail)) {
+            throw ApiException.forbidden(
+                    "Você não pode consultar este membro.");
         }
-        int quota = member.getDayOffsQuota() != null ? member.getDayOffsQuota() : 0;
-        int used = 0;
-        if (member.getEmail() != null) {
-            User u = userRepository.findByEmailIgnoreCase(member.getEmail()).orElse(null);
-            if (u != null) {
-                used = unavailabilityService.getUsedDaysByUser(u.getId(), null);
-            }
+        throw ApiException.notFound("Membro não encontrado.");
+    }
+
+    authorizeMemberLookup(actor, member, targetEmail);
+
+    int quota = member.getDayOffsQuota() != null
+            ? member.getDayOffsQuota()
+            : 0;
+
+    int used = 0;
+
+    if (member.getEmail() != null) {
+        User user = userRepository
+                .findByEmailIgnoreCase(member.getEmail())
+                .orElse(null);
+
+        if (user != null) {
+            used = unavailabilityService
+                    .getUsedDaysByUser(user.getId(), null);
         }
-        return new MemberByEmailView(member, used, Math.max(0, quota - used));
+    }
+
+    return new MemberByEmailView(
+            member,
+            used,
+            Math.max(0, quota - used));
+    } 
+
+    private void authorizeMemberLookup(
+        User actor,
+        Member targetMember,
+        String targetEmail) {
+
+    if (Roles.isAdmin(actor.getRole())) {
+        return;
+    }
+
+    if (isOwnEmail(actor, targetEmail)) {
+        return;
+    }
+
+    Member actorMember = actor.getEmail() == null
+            ? null
+            : memberRepository
+                    .findByEmailIgnoreCase(
+                            actor.getEmail().toLowerCase())
+                    .orElse(null);
+
+    String actorName = actorMember != null
+            ? actorMember.getName()
+            : null;
+
+    boolean isDirectReport =
+            ReportToHelper.reportToMatchesLider(
+                    targetMember.getReportTo(),
+                    actor.getEmail(),
+                    actorName);
+
+    if (!isDirectReport) {
+        throw ApiException.forbidden(
+                "Você só pode consultar seu próprio perfil "
+                        + "ou membros liderados diretamente.");
+    }
+   }
+
+   private boolean isOwnEmail(User actor, String targetEmail) {
+        return actor.getEmail() != null
+                && targetEmail != null
+                && actor.getEmail().equalsIgnoreCase(targetEmail);
     }
 
 
