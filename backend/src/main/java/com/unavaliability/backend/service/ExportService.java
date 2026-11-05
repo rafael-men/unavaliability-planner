@@ -133,6 +133,9 @@ public class ExportService {
 
     private String escapeCsv(String v) {
         String s = v == null ? "" : v;
+        if (!s.isEmpty() && "=+-@\t\r".indexOf(s.charAt(0)) >= 0) {
+            s = "'" + s;
+        }
         if (s.contains(";") || s.contains("\"") || s.contains("\n") || s.contains("\r")) {
             return '"' + s.replace("\"", "\"\"") + '"';
         }

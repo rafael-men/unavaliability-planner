@@ -69,8 +69,8 @@ class UnavailabilityCancelTest {
         u.setUserId(7L);
         u.setFullName("Bruno");
         u.setStatus("approved");
-        u.setStartDate(LocalDate.of(2024, 1, 22)); // seg
-        u.setEndDate(LocalDate.of(2024, 1, 26));    // sex (5 úteis)
+        u.setStartDate(LocalDate.of(2024, 1, 22)); 
+        u.setEndDate(LocalDate.of(2024, 1, 26));    
         u.setTotalDays(5);
         return u;
     }
@@ -124,7 +124,7 @@ class UnavailabilityCancelTest {
         when(userRepository.findById(7L)).thenReturn(Optional.of(dono));
         service.cancelOrShorten(admin, 10L, LocalDate.of(2024, 1, 24), HOJE);
 
-        assertThat(u.getStatus()).isEqualTo("approved"); // continua aprovada
+        assertThat(u.getStatus()).isEqualTo("approved");
         assertThat(u.getEndDate()).isEqualTo(LocalDate.of(2024, 1, 24));
         assertThat(u.getTotalDays()).isEqualTo(3);
         verify(emailService).send(eqArg("bruno@x.com"), anyString(), anyString());
