@@ -40,4 +40,11 @@ public final class ReportToHelper {
         }
         return false;
     }
+
+    public static boolean reportToContainsEmail(String reportTo, String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return parseReportTo(reportTo).contains(email.trim().toLowerCase());
+    }
 }

@@ -60,12 +60,22 @@ public class AuthController {
     public record ForgotPasswordRequest(String email) {
     }
 
+    public record ResetPasswordRequest(String token, String password) {
+    }
 
     @PostMapping("/forgot-password")
     public Map<String, Object> forgotPassword(@RequestBody ForgotPasswordRequest req) {
         ticketService.open(req != null ? req.email() : null);
         return Map.of("success", true,
                 "message", "Se o e-mail estiver cadastrado, um chamado foi aberto para um administrador.");
+    }
+
+    @PostMapping("/reset-password")
+    public Map<String, Object> resetPassword(@RequestBody ResetPasswordRequest req) {
+        ticketService.reset(
+                req != null ? req.token() : null,
+                req != null ? req.password() : null);
+        return Map.of("success", true, "message", "Senha redefinida com sucesso.");
     }
 
     private String clientIp(HttpServletRequest http) {

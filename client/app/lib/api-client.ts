@@ -88,9 +88,11 @@ export const API = {
   },
   me: () => request<{ user: User }>('GET', '/api/auth/me'),
   forgotPassword: (email: string) => request<void>('POST', '/api/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) =>
+    request<void>('POST', '/api/auth/reset-password', { token, password }),
 
   getTickets: (onlyOpen = false) => request<{ id: number; email: string; status: 'open' | 'resolved'; resolvedBy?: number | null; resolvedAt?: string | null; createdAt?: string | null }[]>('GET', `/api/admin/tickets?onlyOpen=${onlyOpen}`),
-  resolveTicket: (id: number, password: string) => request<void>('POST', `/api/admin/tickets/${id}/resolve`, { password }),
+  resolveTicket: (id: number) => request<void>('POST', `/api/admin/tickets/${id}/resolve`),
 
   getSetores: () => request<string[]>('GET', '/api/setores'),
   createSetor: (name: string) => request<void>('POST', '/api/admin/setores', { name }),

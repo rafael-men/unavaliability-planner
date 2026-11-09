@@ -172,41 +172,24 @@ public class MemberService {
     } 
 
     private void authorizeMemberLookup(
-        User actor,
-        Member targetMember,
-        String targetEmail) {
+            User actor,
+            Member targetMember,
+            String targetEmail) {
 
-    if (Roles.isAdmin(actor.getRole())) {
-        return;
+        if (Roles.isAdmin(actor.getRole()) || isOwnEmail(actor, targetEmail)) {
+            return;
+        }
+
+        boolean isDirectReport = ReportToHelper.reportToContainsEmail(
+                targetMember.getReportTo(),
+                actor.getEmail());
+
+        if (!isDirectReport) {
+            throw ApiException.forbidden(
+                    "Você só pode consultar seu próprio perfil "
+                            + "ou membros liderados diretamente.");
+        }
     }
-
-    if (isOwnEmail(actor, targetEmail)) {
-        return;
-    }
-
-    Member actorMember = actor.getEmail() == null
-            ? null
-            : memberRepository
-                    .findByEmailIgnoreCase(
-                            actor.getEmail().toLowerCase())
-                    .orElse(null);
-
-    String actorName = actorMember != null
-            ? actorMember.getName()
-            : null;
-
-    boolean isDirectReport =
-            ReportToHelper.reportToMatchesLider(
-                    targetMember.getReportTo(),
-                    actor.getEmail(),
-                    actorName);
-
-    if (!isDirectReport) {
-        throw ApiException.forbidden(
-                "Você só pode consultar seu próprio perfil "
-                        + "ou membros liderados diretamente.");
-    }
-   }
 
    private boolean isOwnEmail(User actor, String targetEmail) {
         return actor.getEmail() != null

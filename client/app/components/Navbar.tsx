@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../providers';
 import { API } from '../lib/api-client';
 import { ROLE_LABELS, isAdminRole, isMasterAdminRole, isEditorRole } from '../lib/client-config';
-import { Calendar, Users, Building2, ClipboardList, LogOut, User, Briefcase, CalendarRange, CalendarCheck, Menu, X, Ticket, LucideIcon } from 'lucide-react';
+import { Calendar, Users, Building2, ClipboardList, LogOut, User, Briefcase, CalendarRange, Menu, X, Ticket, LucideIcon } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 
 interface NavItem {
@@ -63,7 +63,7 @@ export function Navbar() {
             className="flex items-center gap-2 text-base font-extrabold tracking-tight min-w-0"
             aria-label="Ir para Indisponibilidade"
           >
-            <CalendarCheck size={22} className="text-[var(--accent)] shrink-0" aria-hidden="true" />
+            <img src="/icon.svg" alt="" width={24} height={24} className="text-[var(--accent)] shrink-0" />
             <span className="bg-gradient-to-br from-[var(--accent)] to-blue-300 bg-clip-text text-transparent truncate">
               Indisponibilidade
             </span>

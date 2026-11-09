@@ -117,11 +117,6 @@ class MemberServiceAuthorizationTest {
                 "lider",
                 "lider@empresa.com");
 
-        Member leaderMember = member(
-                "lider@empresa.com",
-                "Líder",
-                null);
-
         Member directReport = member(
                 "liderado@empresa.com",
                 "Liderado",
@@ -131,15 +126,33 @@ class MemberServiceAuthorizationTest {
                 "liderado@empresa.com"))
                 .thenReturn(Optional.of(directReport));
 
-        when(memberRepository.findByEmailIgnoreCase(
-                "lider@empresa.com"))
-                .thenReturn(Optional.of(leaderMember));
-
         when(userRepository.findByEmailIgnoreCase(
                 "liderado@empresa.com"))
                 .thenReturn(Optional.empty());
 
         service.byEmail(leader, "liderado@empresa.com");
+    }
+
+    @Test
+    void usuarioComMesmoNomeNaoPodeConsultarLideradoDeOutroLider() {
+        User actor = user(
+                1L,
+                "lider",
+                "outro-lider@empresa.com");
+
+        Member directReport = member(
+                "liderado@empresa.com",
+                "Liderado",
+                "lider-real@empresa.com");
+
+        when(memberRepository.findByEmailIgnoreCase(
+                "liderado@empresa.com"))
+                .thenReturn(Optional.of(directReport));
+
+        assertThatThrownBy(() ->
+                service.byEmail(actor, "liderado@empresa.com"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("próprio perfil");
     }
 
     @Test

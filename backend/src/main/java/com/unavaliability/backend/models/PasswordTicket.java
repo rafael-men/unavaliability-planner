@@ -35,6 +35,15 @@ public class PasswordTicket {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column (name="token_hash")
+    private String tokenHash;
+
+    @Column(name = "token_expires_at")
+    private OffsetDateTime tokenExpiresAt;
+
+    @Column(name = "token_used_at")
+    private OffsetDateTime tokenUsedAt;
+
     public PasswordTicket() {
     }
 
@@ -82,5 +91,29 @@ public class PasswordTicket {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getTokenHash() {
+        return tokenHash;
+    }
+
+    public void setTokenHash(String tokenHash) {
+        this.tokenHash = tokenHash;
+    }
+
+    public OffsetDateTime getTokenExpiresAt() {
+        return tokenExpiresAt;
+    }
+
+    public void setTokenExpiresAt(OffsetDateTime tokenExpiresAt) {
+        this.tokenExpiresAt = tokenExpiresAt;
+    }
+
+    public OffsetDateTime getTokenUsedAt() {
+        return tokenUsedAt;
+    }
+
+    public void setTokenUsedAt(OffsetDateTime tokenUsedAt) {
+        this.tokenUsedAt = tokenUsedAt;
     }
 }

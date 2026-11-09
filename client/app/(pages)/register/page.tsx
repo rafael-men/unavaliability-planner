@@ -69,8 +69,9 @@ export default function RegisterPage() {
           )}
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Nome Completo</label>
+            <label htmlFor="register-name" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Nome Completo</label>
             <input
+              id="register-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Seu nome completo"
@@ -80,8 +81,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Email</label>
+            <label htmlFor="register-email" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Email</label>
             <input
+              id="register-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
@@ -92,9 +94,10 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Senha (mín. 6 caracteres)</label>
+            <label htmlFor="register-password" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Senha (mín. 6 caracteres)</label>
             <div className="relative">
               <input
+                id="register-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type={showPwd ? 'text' : 'password'}
@@ -105,8 +108,8 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPwd((v) => !v)}
+                aria-label={showPwd ? 'Ocultar senha' : 'Mostrar senha'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-foreground transition"
-                tabIndex={-1}
               >
                 {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -114,9 +117,10 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Setor</label>
+            <label htmlFor="register-department" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Setor</label>
             <div className="relative">
               <select
+                id="register-department"
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 disabled={loading}

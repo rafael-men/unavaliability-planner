@@ -51,6 +51,7 @@ server:
   forward-headers-strategy: framework
 
 app:
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
   jwt:
     secret: ${SESSION_SECRET}
     expiration-ms: 604800000

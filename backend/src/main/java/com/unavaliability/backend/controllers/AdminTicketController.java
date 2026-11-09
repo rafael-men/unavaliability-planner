@@ -36,13 +36,10 @@ public class AdminTicketController {
         return ticketService.list(currentUser.require(), onlyOpen);
     }
 
-    public record ResolveRequest(String password) {
-    }
-
-    @Operation(summary = "Resolve um ticket definindo a nova senha (enviada por e-mail ao usuário)")
+    @Operation(summary = "Autoriza redefinição e envia link seguro por e-mail")
     @PostMapping("/{id}/resolve")
-    public Map<String, Object> resolve(@PathVariable Long id, @RequestBody ResolveRequest req) {
-        ticketService.resolve(currentUser.require(), id, req != null ? req.password() : null);
-        return Map.of("success", true, "message", "Senha redefinida e enviada por e-mail.");
+    public Map<String, Object> resolve(@PathVariable Long id) {
+        ticketService.resolve(currentUser.require(), id);
+        return Map.of("success", true, "message", "Link de redefinição enviado por e-mail.");
     }
 }

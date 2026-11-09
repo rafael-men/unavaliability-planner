@@ -52,6 +52,25 @@ describe('API.getNotificationCount', () => {
   });
 });
 
+describe('API.resetPassword', () => {
+  it('envia token e nova senha para o backend', async () => {
+    mockFetch([{ status: 200, body: { success: true } }]);
+
+    await API.resetPassword('token-seguro', 'Nova123');
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/auth/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          token: 'token-seguro',
+          password: 'Nova123',
+        }),
+      }),
+    );
+  });
+});
+
 describe('API.login', () => {
   it('retorna user após login bem-sucedido', async () => {
     const user = { id: 1, email: 'a@b.com', full_name: 'Test', role: 'admin_master' };

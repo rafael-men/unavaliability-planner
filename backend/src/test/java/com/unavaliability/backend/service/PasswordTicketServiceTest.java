@@ -16,6 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.OffsetDateTime;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,7 +48,7 @@ class PasswordTicketServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PasswordTicketService(ticketRepository, userRepository, passwordEncoder, emailService, authz);
+        service = new PasswordTicketService(ticketRepository, userRepository, passwordEncoder, emailService, authz, "http://localhost:3000");
         admin = new User();
         admin.setId(1L);
         admin.setRole("admin_editor");
@@ -96,17 +100,15 @@ class PasswordTicketServiceTest {
     @DisplayName("resolve exige admin editor (403 para colaborador)")
     void resolveSemPermissao() {
         User colaborador = new User(); colaborador.setRole("colaborador");
-        assertThatThrownBy(() -> service.resolve(colaborador, 1L, "senha123"))
+        assertThatThrownBy(() -> service.resolve(colaborador, 1L))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("Admin Editor");
     }
 
     @Test
-    @DisplayName("resolve rejeita senha fraca (sem número)")
-    void resolveSenhaFraca() {
-        PasswordTicket t = new PasswordTicket("a@x.com", 9L);
-        when(ticketRepository.findById(5L)).thenReturn(Optional.of(t));
-        assertThatThrownBy(() -> service.resolve(admin, 5L, "apenasletras"))
+    @DisplayName("reset rejeita senha fraca (sem número)")
+    void resetSenhaFraca() {
+        assertThatThrownBy(() -> service.reset("token", "apenasletras"))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("letra e um número");
     }
@@ -117,26 +119,67 @@ class PasswordTicketServiceTest {
         PasswordTicket t = new PasswordTicket("a@x.com", 9L);
         t.setStatus("resolved");
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(t));
-        assertThatThrownBy(() -> service.resolve(admin, 5L, "senha123"))
+        assertThatThrownBy(() -> service.resolve(admin, 5L))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("já foi resolvido");
     }
 
     @Test
-    @DisplayName("resolve grava hash, marca resolvido e envia e-mail")
+    @DisplayName("resolve gera token e envia link sem senha")
     void resolveOk() {
         PasswordTicket t = new PasswordTicket("a@x.com", 9L);
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(t));
         User dono = new User(); dono.setId(9L); dono.setEmail("a@x.com"); dono.setNome("Ana");
         when(userRepository.findById(9L)).thenReturn(Optional.of(dono));
-        when(passwordEncoder.encode("senha123")).thenReturn("$2a$10$novo");
+        service.resolve(admin, 5L);
 
-        service.resolve(admin, 5L, "senha123");
+        assertThat(t.getTokenHash()).isNotBlank();
+        assertThat(t.getTokenExpiresAt()).isAfter(OffsetDateTime.now());
+        assertThat(t.getStatus()).isEqualTo("open");
+        assertThat(t.getResolvedBy()).isEqualTo(1L);
+        verify(userRepository, never()).save(dono);
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(emailService).send(
+                eq("a@x.com"),
+                eq("Redefinição de senha"),
+                org.mockito.ArgumentMatchers.argThat(message ->
+                        message.contains("reset-password?token=")
+                                && !message.contains("senha123")));
+    }
+
+    @Test
+    @DisplayName("reset troca a senha e invalida o token")
+    void resetOk() {
+        PasswordTicket t = new PasswordTicket("a@x.com", 9L);
+        String token = "token-de-teste";
+        t.setTokenHash(hashForTest(token));
+        t.setTokenExpiresAt(OffsetDateTime.now().plusMinutes(10));
+
+        User dono = new User();
+        dono.setId(9L);
+        dono.setEmail("a@x.com");
+
+        when(ticketRepository.findByTokenHashAndStatus(t.getTokenHash(), "open"))
+                .thenReturn(Optional.of(t));
+        when(userRepository.findById(9L)).thenReturn(Optional.of(dono));
+        when(passwordEncoder.encode("Nova123")).thenReturn("$2a$10$novo");
+
+        service.reset(token, "Nova123");
 
         assertThat(dono.getPassw()).isEqualTo("$2a$10$novo");
-        verify(userRepository).save(dono);
         assertThat(t.getStatus()).isEqualTo("resolved");
-        assertThat(t.getResolvedBy()).isEqualTo(1L);
-        verify(emailService).send(eq("a@x.com"), anyString(), org.mockito.ArgumentMatchers.contains("senha123"));
+        assertThat(t.getTokenUsedAt()).isNotNull();
+        verify(userRepository).save(dono);
+        verify(ticketRepository).save(t);
+    }
+
+    private static String hashForTest(String token) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (Exception exception) {
+            throw new AssertionError(exception);
+        }
     }
 }

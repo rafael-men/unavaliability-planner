@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from 'primereact/button';
-import { Password } from 'primereact/password';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmDialog } from 'primereact/confirmdialog';
 import { Ticket as TicketIcon, ChevronLeft, KeyRound, Clock, CheckCircle2 } from 'lucide-react';
@@ -34,24 +33,18 @@ function AdminTicketsPage() {
   const toast = useToast();
   const { data: tickets, loading, reload } = usePageData<Ticket[]>(fetchTickets, []);
   const [target, setTarget] = useState<Ticket | null>(null);
-  const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
   function openResolve(t: Ticket) {
     setTarget(t);
-    setPassword('');
   }
 
   async function resolve() {
     if (!target) return;
-    if (password.length < 6) {
-      toast.show('A senha deve ter ao menos 6 caracteres.', 'error');
-      return;
-    }
     setSaving(true);
     try {
-      await API.resolveTicket(target.id, password);
-      toast.show('Senha redefinida e enviada por e-mail ao usuário.');
+      await API.resolveTicket(target.id);
+      toast.show('Link de redefinição enviado por e-mail.');
       setTarget(null);
       reload();
     } catch (e: any) {
@@ -113,7 +106,7 @@ function AdminTicketsPage() {
         )}
 
         <Dialog
-          header="Definir nova senha"
+          header="Autorizar redefinição"
           visible={!!target}
           onHide={() => setTarget(null)}
           style={{ width: 'min(92vw, 440px)' }}
@@ -124,14 +117,14 @@ function AdminTicketsPage() {
               <p className="text-sm text-[var(--text-muted)]">
                 Usuário: <strong className="text-foreground">{target.email}</strong>
               </p>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block">Nova senha</label>
-                <Password value={password} onChange={(e) => setPassword(e.target.value)} feedback={false} toggleMask inputClassName="w-full" className="w-full" />
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Mínimo 6 caracteres, com letra e número. Será enviada por e-mail ao usuário.</p>
-              </div>
+              <p className="text-sm text-[var(--text-muted)]">
+                Um link temporário será enviado para o e-mail do usuário.
+                O link expira em 30 minutos e permite que o próprio usuário
+                escolha uma nova senha.
+              </p>
               <div className="flex justify-end gap-2 pt-1">
                 <Button label="Cancelar" severity="secondary" outlined onClick={() => setTarget(null)} />
-                <Button label="Redefinir e enviar" loading={saving} onClick={resolve} />
+                <Button label="Enviar link de redefinição" loading={saving} onClick={resolve} />
               </div>
             </div>
           )}
