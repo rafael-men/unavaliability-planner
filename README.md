@@ -116,7 +116,7 @@ npm test                     # testes (utilitários de UI)
 
 | Email              | Senha      | Papel          |
 | ------------------ | ---------- | -------------- |
-| `rafael@gmail.com` | `admin123` | `admin_master` |
+| `criar email de admin` | `criar senha de admin` | `admin_master` |
 
 > Troque a senha após o primeiro acesso.
 

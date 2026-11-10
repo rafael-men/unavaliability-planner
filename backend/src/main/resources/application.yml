@@ -17,7 +17,7 @@ spring:
     default-schema: ${DB_SCHEMA}
     create-schemas: true
     baseline-on-migrate: true
-    baseline-version: 0
+    baseline-version: 7
     locations: classpath:db/migration
 
   jpa:
@@ -45,6 +45,27 @@ spring:
           auth: true
           starttls:
             enable: true
+
+management:
+  server:
+    port: 8081          
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  structured:
+    format:
+      console: ecs  
 
 server:
   port: 8080
