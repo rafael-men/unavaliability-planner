@@ -24,7 +24,6 @@ import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
 
-
 @Service
 public class PasswordTicketService {
 
@@ -39,21 +38,19 @@ public class PasswordTicketService {
     private final AuthorizationService authz;
 
     public PasswordTicketService(
-        PasswordTicketRepository ticketRepository,
-        UserRepository userRepository,
-        PasswordEncoder passwordEncoder,
-        EmailService emailService,
-        AuthorizationService authz,
-        @Value("${app.frontend-url:http://localhost:3000}")
-        String frontendUrl) {
-    this.ticketRepository = ticketRepository;
-    this.userRepository = userRepository;
-    this.passwordEncoder = passwordEncoder;
-    this.emailService = emailService;
-    this.authz = authz;
-    this.frontendUrl = frontendUrl;
+            PasswordTicketRepository ticketRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            EmailService emailService,
+            AuthorizationService authz,
+            @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
+        this.ticketRepository = ticketRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
+        this.authz = authz;
+        this.frontendUrl = frontendUrl;
     }
-
 
     @Transactional
     public void open(String emailRaw) {
@@ -81,9 +78,8 @@ public class PasswordTicketService {
 
     @Transactional(readOnly = true)
     public long countOpen() {
-        return ticketRepository.findByStatusOrderByCreatedAtDesc(Status.Ticket.OPEN).size();
+        return ticketRepository.countByStatus(Status.Ticket.OPEN);
     }
-
 
     @Transactional
     public void resolve(User actor, Long ticketId) {

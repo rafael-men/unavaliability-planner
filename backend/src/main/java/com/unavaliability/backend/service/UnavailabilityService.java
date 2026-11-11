@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 @Service
 public class UnavailabilityService {
 
@@ -53,12 +52,12 @@ public class UnavailabilityService {
     private final EmailService emailService;
 
     public UnavailabilityService(UnavailabilityRepository unavailabilityRepository,
-                                 UserRepository userRepository, MemberRepository memberRepository,
-                                 UserClienteRepository userClienteRepository,
-                                 EventoRepository eventoRepository,
-                                 EventoClienteRepository eventoClienteRepository,
-                                 ClienteRepository clienteRepository, SetorService setorService,
-                                 UnavailabilityAuditRepository auditRepository, EmailService emailService) {
+            UserRepository userRepository, MemberRepository memberRepository,
+            UserClienteRepository userClienteRepository,
+            EventoRepository eventoRepository,
+            EventoClienteRepository eventoClienteRepository,
+            ClienteRepository clienteRepository, SetorService setorService,
+            UnavailabilityAuditRepository auditRepository, EmailService emailService) {
         this.unavailabilityRepository = unavailabilityRepository;
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
@@ -71,7 +70,6 @@ public class UnavailabilityService {
         this.emailService = emailService;
     }
 
-
     private void audit(Long unavId, String action, User actor, String detail) {
         auditRepository.save(new UnavailabilityAudit(
                 unavId, action,
@@ -80,11 +78,9 @@ public class UnavailabilityService {
                 detail));
     }
 
-  
     private String ownerEmail(Long userId) {
         return userRepository.findById(userId).map(User::getEmail).orElse(null);
     }
-
 
     @Transactional
     public void create(User user, CreateRequest req, LocalDate today) {
@@ -132,19 +128,16 @@ public class UnavailabilityService {
                 "Solicitação criada (" + start + " a " + end + ", " + expectedDays + " dias úteis).");
     }
 
-
     private void checkOverlap(Long userId, LocalDate start, LocalDate end, Long excludeId) {
-        List<Unavailability> existing =
-                unavailabilityRepository.findByUserIdAndStatusIn(userId,
-                        List.of(Status.Unavailability.PENDING, Status.Unavailability.APPROVED));
+        List<Unavailability> existing = unavailabilityRepository.findByUserIdAndStatusIn(userId,
+                List.of(Status.Unavailability.PENDING, Status.Unavailability.APPROVED));
         for (Unavailability r : existing) {
             if (excludeId != null && excludeId.equals(r.getId())) {
                 continue;
             }
             boolean overlap = !start.isAfter(r.getEndDate()) && !r.getStartDate().isAfter(end);
             if (overlap) {
-                String statusLabel =
-                        Status.Unavailability.APPROVED.equals(r.getStatus()) ? "aprovada" : "pendente";
+                String statusLabel = Status.Unavailability.APPROVED.equals(r.getStatus()) ? "aprovada" : "pendente";
                 throw ApiException.badRequest("Período se sobrepõe a uma solicitação " + statusLabel
                         + " (" + r.getStartDate() + " a " + r.getEndDate()
                         + "). Cancele ou aguarde a conclusão antes de solicitar um novo período sobreposto.");
@@ -155,8 +148,8 @@ public class UnavailabilityService {
     @Transactional(readOnly = true)
     public ListResponse list(User user) {
         if (Roles.canViewAll(user.getRole())) {
-            List<Unavailability> all =
-                    unavailabilityRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, LIST_LIMIT));
+            List<Unavailability> all = unavailabilityRepository
+                    .findAllByOrderByCreatedAtDesc(PageRequest.of(0, LIST_LIMIT));
             List<UnavailabilityView> data = enrichWithUser(all);
             return new ListResponse(data, all.size() >= LIST_LIMIT);
         }
@@ -165,12 +158,10 @@ public class UnavailabilityService {
         return new ListResponse(data, false);
     }
 
-
     @Transactional(readOnly = true)
     public List<UnavailabilityView> mine(User user) {
         return enrichWithUser(unavailabilityRepository.findByUserIdOrderByCreatedAtDesc(user.getId()));
     }
-
 
     @Transactional(readOnly = true)
     public List<UnavailabilityView> active(LocalDate today) {
@@ -183,142 +174,135 @@ public class UnavailabilityService {
                         Status.Unavailability.APPROVED, today, today);
     }
 
-
-    @Transactional (readOnly = true)
+    @Transactional(readOnly = true)
     public List<UnavailabilityView> pending(User user) {
         List<Unavailability> visible = visiblePending(user);
         List<UnavailabilityView> views = enrichWithUser(visible);
         return attachEventConflicts(views);
     }
 
-    @Transactional(readOnly = true) 
-        public List<UnavailabilityView> pendingForNotifications(User user) {
-            return enrichWithUser(visiblePending(user));
+    @Transactional(readOnly = true)
+    public List<UnavailabilityView> pendingForNotifications(User user) {
+        return enrichWithUser(visiblePending(user));
     }
 
     private List<Unavailability> visiblePending(User user) {
-    if (!Roles.isAdmin(user.getRole()) && !Roles.isLider(user.getRole())
-            && !Roles.SOCIO.equals(user.getRole())) {
-        throw ApiException.forbidden("Acesso restrito a líderes e administradores.");
+        if (!Roles.isAdmin(user.getRole()) && !Roles.isLider(user.getRole())
+                && !Roles.SOCIO.equals(user.getRole())) {
+            throw ApiException.forbidden("Acesso restrito a líderes e administradores.");
+        }
+
+        List<Unavailability> pendings = unavailabilityRepository.findByStatusOrderByCreatedAtDesc(
+                Status.Unavailability.PENDING);
+
+        if (Roles.isLider(user.getRole()) && !Roles.isAdmin(user.getRole())) {
+            return filterForLider(user, pendings);
+        }
+
+        return pendings;
     }
 
-    List<Unavailability> pendings =
-            unavailabilityRepository.findByStatusOrderByCreatedAtDesc(
-                    Status.Unavailability.PENDING);
-
-    if (Roles.isLider(user.getRole()) && !Roles.isAdmin(user.getRole())) {
-        return filterForLider(user, pendings);
-    }
-
-    return pendings;
-    } 
-    
-
-
-    //carregamento em lote para melhora de performance
+    // carregamento em lote para melhora de performance
     private List<Unavailability> filterForLider(User lider, List<Unavailability> pendings) {
-    Member liderMember = lider.getEmail() == null
-            ? null
-            : memberRepository
-                    .findByEmailIgnoreCase(lider.getEmail().toLowerCase())
-                    .orElse(null);
+        Member liderMember = lider.getEmail() == null
+                ? null
+                : memberRepository
+                        .findByEmailIgnoreCase(lider.getEmail().toLowerCase())
+                        .orElse(null);
 
-    String liderName = liderMember != null
-            ? liderMember.getName()
-            : null;
+        String liderName = liderMember != null
+                ? liderMember.getName()
+                : null;
 
-    Set<Long> requesterIds = new HashSet<>();
+        Set<Long> requesterIds = new HashSet<>();
 
-    for (Unavailability record : pendings) {
-        if (record.getUserId() != null
-                && !record.getUserId().equals(lider.getId())) {
-            requesterIds.add(record.getUserId());
+        for (Unavailability record : pendings) {
+            if (record.getUserId() != null
+                    && !record.getUserId().equals(lider.getId())) {
+                requesterIds.add(record.getUserId());
+            }
         }
+
+        Map<Long, User> requestersById = new HashMap<>();
+
+        if (!requesterIds.isEmpty()) {
+            userRepository.findAllById(requesterIds)
+                    .forEach(requester -> requestersById.put(requester.getId(), requester));
+        }
+
+        Set<Long> memberIds = new HashSet<>();
+        Set<String> requesterEmails = new HashSet<>();
+
+        for (User requester : requestersById.values()) {
+            if (requester.getMemberId() != null) {
+                memberIds.add(requester.getMemberId());
+            }
+
+            if (requester.getEmail() != null
+                    && !requester.getEmail().isBlank()) {
+                requesterEmails.add(requester.getEmail().toLowerCase());
+            }
+        }
+
+        Map<Long, Member> membersById = new HashMap<>();
+
+        if (!memberIds.isEmpty()) {
+            memberRepository.findAllById(memberIds)
+                    .forEach(member -> membersById.put(member.getId(), member));
+        }
+
+        Map<String, Member> membersByEmail = new HashMap<>();
+
+        if (!requesterEmails.isEmpty()) {
+            memberRepository.findByEmailInIgnoreCase(
+                    new ArrayList<>(requesterEmails))
+                    .forEach(member -> membersByEmail.put(
+                            member.getEmail().toLowerCase(),
+                            member));
+        }
+
+        List<Unavailability> out = new ArrayList<>();
+
+        for (Unavailability record : pendings) {
+            if (record.getUserId().equals(lider.getId())) {
+                continue;
+            }
+
+            User requester = requestersById.get(record.getUserId());
+
+            if (requester == null) {
+                continue;
+            }
+
+            if (lider.getDepartment() != null
+                    && lider.getDepartment().equals(requester.getDepartment())) {
+                out.add(record);
+                continue;
+            }
+
+            Member requesterMember = null;
+
+            if (requester.getMemberId() != null) {
+                requesterMember = membersById.get(requester.getMemberId());
+            }
+
+            if (requesterMember == null
+                    && requester.getEmail() != null) {
+                requesterMember = membersByEmail.get(
+                        requester.getEmail().toLowerCase());
+            }
+
+            if (requesterMember != null
+                    && ReportToHelper.reportToMatchesLider(
+                            requesterMember.getReportTo(),
+                            lider.getEmail(),
+                            liderName)) {
+                out.add(record);
+            }
+        }
+
+        return out;
     }
-
-    Map<Long, User> requestersById = new HashMap<>();
-
-    if (!requesterIds.isEmpty()) {
-        userRepository.findAllById(requesterIds)
-                .forEach(requester ->
-                        requestersById.put(requester.getId(), requester));
-    }
-
-    Set<Long> memberIds = new HashSet<>();
-    Set<String> requesterEmails = new HashSet<>();
-
-    for (User requester : requestersById.values()) {
-        if (requester.getMemberId() != null) {
-            memberIds.add(requester.getMemberId());
-        }
-
-        if (requester.getEmail() != null
-                && !requester.getEmail().isBlank()) {
-            requesterEmails.add(requester.getEmail().toLowerCase());
-        }
-    }
-
-    Map<Long, Member> membersById = new HashMap<>();
-
-    if (!memberIds.isEmpty()) {
-        memberRepository.findAllById(memberIds)
-                .forEach(member ->
-                        membersById.put(member.getId(), member));
-    }
-
-    Map<String, Member> membersByEmail = new HashMap<>();
-
-    if (!requesterEmails.isEmpty()) {
-        memberRepository.findByEmailInIgnoreCase(
-                        new ArrayList<>(requesterEmails))
-                .forEach(member ->
-                        membersByEmail.put(
-                                member.getEmail().toLowerCase(),
-                                member));
-    }
-
-    List<Unavailability> out = new ArrayList<>();
-
-    for (Unavailability record : pendings) {
-        if (record.getUserId().equals(lider.getId())) {
-            continue;
-        }
-
-        User requester = requestersById.get(record.getUserId());
-
-        if (requester == null) {
-            continue;
-        }
-
-        if (lider.getDepartment() != null
-                && lider.getDepartment().equals(requester.getDepartment())) {
-            out.add(record);
-            continue;
-        }
-
-        Member requesterMember = null;
-
-        if (requester.getMemberId() != null) {
-            requesterMember = membersById.get(requester.getMemberId());
-        }
-
-        if (requesterMember == null
-                && requester.getEmail() != null) {
-            requesterMember = membersByEmail.get(
-                    requester.getEmail().toLowerCase());
-        }
-
-        if (requesterMember != null
-                && ReportToHelper.reportToMatchesLider(
-                        requesterMember.getReportTo(),
-                        lider.getEmail(),
-                        liderName)) {
-            out.add(record);
-        }
-    }
-
-    return out;
-}
 
     private Member resolveMemberForUser(User requester) {
         Member m = null;
@@ -330,7 +314,6 @@ public class UnavailabilityService {
         }
         return m;
     }
-
 
     @Transactional(readOnly = true)
     public ImpactResponse impact(User user, LocalDate today) {
@@ -361,7 +344,6 @@ public class UnavailabilityService {
         deptImpact.sort((a, b) -> Integer.compare(b.on_leave(), a.on_leave()));
         return new ImpactResponse(onLeave, deptImpact);
     }
-
 
     @Transactional
     public void update(User user, Long id, UpdateRequest req, LocalDate today) {
@@ -404,9 +386,10 @@ public class UnavailabilityService {
         if (req.department() != null) {
             record.setDepartment(req.department());
         }
-        unavailabilityRepository.save(record);
+        // flush aqui para que a violação de unav_no_overlap estoure dentro deste método
+        // e não só no commit da transação.
+        unavailabilityRepository.saveAndFlush(record);
     }
-
 
     @Transactional
     public void delete(User user, Long id) {
@@ -425,7 +408,6 @@ public class UnavailabilityService {
         unavailabilityRepository.deleteById(id);
     }
 
-
     @Transactional
     public void approve(User approver, Long id) {
         Unavailability record = loadPendingForReview(approver, id, "aprovar");
@@ -436,7 +418,6 @@ public class UnavailabilityService {
         audit(record.getId(), Status.AuditAction.APPROVED, approver, "Solicitação aprovada.");
     }
 
-
     @Transactional
     public void reject(User approver, Long id) {
         Unavailability record = loadPendingForReview(approver, id, "rejeitar");
@@ -446,7 +427,6 @@ public class UnavailabilityService {
         unavailabilityRepository.save(record);
         audit(record.getId(), Status.AuditAction.REJECTED, approver, "Solicitação rejeitada.");
     }
-
 
     @Transactional
     public void cancelOrShorten(User actor, Long id, LocalDate newEndDate, LocalDate today) {
@@ -504,7 +484,6 @@ public class UnavailabilityService {
         emailService.send(ownerEmail, assunto, corpo);
     }
 
-
     @Transactional(readOnly = true)
     public List<UnavailabilityAudit> history(User user, Long id) {
         Unavailability record = unavailabilityRepository.findById(id).orElse(null);
@@ -531,7 +510,6 @@ public class UnavailabilityService {
         }
         return record;
     }
-
 
     private boolean canApprove(User approver, Unavailability record) {
         if (Roles.isMasterAdmin(approver.getRole())) {
@@ -566,7 +544,6 @@ public class UnavailabilityService {
         return false;
     }
 
-
     @Transactional(readOnly = true)
     public int getUsedDaysByUser(Long userId, Integer year) {
         int y = year != null ? year : LocalDate.now().getYear();
@@ -579,8 +556,6 @@ public class UnavailabilityService {
                 .mapToInt(u -> u.getTotalDays() != null ? u.getTotalDays() : 0)
                 .sum();
     }
-
-
 
     private Map<Long, User> loadUsers(List<Unavailability> records) {
         Set<Long> ids = new HashSet<>();
@@ -608,7 +583,6 @@ public class UnavailabilityService {
         }
         return out;
     }
-
 
     private List<UnavailabilityView> attachEventConflicts(List<UnavailabilityView> views) {
         if (views.isEmpty()) {

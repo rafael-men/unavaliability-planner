@@ -8,6 +8,7 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
@@ -43,13 +44,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex,
-                                                                  HttpServletRequest request) {
+            HttpServletRequest request) {
         log.warn("Acesso negado [traceId={}] {} {}", currentTraceId(), request.getMethod(), request.getRequestURI());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body("Acesso negado."));
     }
 
-    //Erros de requisição feitos pelo cliente
-    
+    // Erros de requisição feitos pelo cliente
+
     @ExceptionHandler({
             ErrorResponseException.class,
             NoResourceFoundException.class,
@@ -71,6 +72,21 @@ public class GlobalExceptionHandler {
                 ? "Recurso não encontrado."
                 : "Requisição inválida.";
         return ResponseEntity.status(status).body(body(msg));
+    }
+
+    
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleIntegrity(DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+        String detalhe = String.valueOf(ex.getMostSpecificCause().getMessage());
+        if (detalhe.contains("unav_no_overlap")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(
+                    "Período se sobrepõe a outra solicitação sua. Atualize a tela e verifique suas solicitações."));
+        }
+        log.error("Violação de integridade [traceId={}] {} {}", currentTraceId(),
+                request.getMethod(), request.getRequestURI(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(body("Erro interno. Tente novamente."));
     }
 
     @ExceptionHandler(Exception.class)

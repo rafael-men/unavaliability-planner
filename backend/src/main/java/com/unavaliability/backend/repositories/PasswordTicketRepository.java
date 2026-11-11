@@ -9,7 +9,12 @@ import java.util.Optional;
 public interface PasswordTicketRepository extends JpaRepository<PasswordTicket, Long> {
 
     List<PasswordTicket> findByStatusOrderByCreatedAtDesc(String status);
+
     List<PasswordTicket> findAllByOrderByCreatedAtDesc();
+
+    long countByStatus(String status);
+
     boolean existsByEmailIgnoreCaseAndStatus(String email, String status);
+
     Optional<PasswordTicket> findByTokenHashAndStatus(String tokenHash, String status);
 }
