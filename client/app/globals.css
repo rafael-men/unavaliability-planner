@@ -60,6 +60,17 @@ body {
   background-attachment: fixed;
   min-height: 100vh;
 }
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, var(--surface) 0%, var(--surface2) 50%, var(--surface) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
 .glass,
 [data-theme="dark"] .glass {
   backdrop-filter: blur(14px) saturate(140%);

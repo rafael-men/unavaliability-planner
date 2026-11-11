@@ -1,3 +1,5 @@
+const ALTURAS = [72, 96, 64, 88, 76, 92];
+
 export function Skeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
@@ -5,7 +7,7 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
         <div
           key={i}
           className="animate-shimmer rounded-xl"
-          style={{ height: 60 + Math.random() * 40, animationDelay: `${i * 0.08}s` }}
+          style={{ height: ALTURAS[i % ALTURAS.length], animationDelay: `${i * 0.08}s` }}
         />
       ))}
     </div>

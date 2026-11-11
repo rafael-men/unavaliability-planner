@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, UserPlus, Calendar } from 'lucide-react';
 import { API } from '../lib/api-client';
+import { Skeleton } from './Skeleton';
 
 interface NotificationItem {
   id: string;
@@ -33,7 +34,7 @@ function saveSeenIds(ids: Set<string>) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify([...ids]));
-  } catch {}
+  } catch { }
 }
 
 export function NotificationBell() {
@@ -48,8 +49,8 @@ export function NotificationBell() {
   const fetchCount = useCallback(async () => {
     try {
       const res = await API.getNotificationCount();
-      setPendingCount(res.count?? 0);
-    } catch {}
+      setPendingCount(res.count ?? 0);
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -59,19 +60,19 @@ export function NotificationBell() {
   }, [fetchCount]);
 
   const fetchItems = useCallback(async () => {
-  setLoadingItems(true);
+    setLoadingItems(true);
 
-  try {
-    const res = await API.getNotifications();
-    const fetched = res.items || [];
+    try {
+      const res = await API.getNotifications();
+      const fetched = res.items || [];
 
-    setItems(fetched);
-    setPendingCount(fetched.length);
-  } catch {
-    // mantém os itens atuais caso a abertura do dropdown falhe.
-  } finally {
-    setLoadingItems(false);
-  }
+      setItems(fetched);
+      setPendingCount(fetched.length);
+    } catch {
+      // mantém os itens atuais caso a abertura do dropdown falhe.
+    } finally {
+      setLoadingItems(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -100,11 +101,11 @@ export function NotificationBell() {
     setOpen(next);
     if (next) {
       fetchItems();
-    } 
-      else if (items.length > 0 && unreadCount > 0) {
-        markAllSeen();
-      }
     }
+    else if (items.length > 0 && unreadCount > 0) {
+      markAllSeen();
+    }
+  }
 
   function handleClickItem(item: NotificationItem) {
     setOpen(false);
@@ -134,7 +135,11 @@ export function NotificationBell() {
             <span className="text-[10px] text-[var(--text-muted)]">{items.length} total</span>
           </div>
 
-          {items.length === 0 ? (
+          {loadingItems ? (
+            <div className="p-4">
+              <Skeleton rows={3} />
+            </div>
+          ) : items.length === 0 ? (
             <div className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">
               Nenhuma notificação pendente.
             </div>
