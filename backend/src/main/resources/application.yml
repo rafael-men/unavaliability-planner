@@ -17,7 +17,8 @@ spring:
     default-schema: ${DB_SCHEMA}
     create-schemas: true
     baseline-on-migrate: true
-    baseline-version: 7
+    baseline-version: 8
+    out-of-order: true
     locations: classpath:db/migration
 
   jpa:

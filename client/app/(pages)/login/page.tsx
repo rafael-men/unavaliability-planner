@@ -62,7 +62,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-2xl animate-fade-up">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-[var(--accent)] bg-clip-text text-transparent">
-            Indisponibilidade
+            Sistema de Indisponibilidade
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-2">Faça login para acessar o sistema</p>
         </div>

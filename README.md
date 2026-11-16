@@ -1,249 +1,227 @@
 # Sistema de Indisponibilidade
 
-Aplicação web para controle de períodos de indisponibilidade de escala de trabalho com fluxo de aprovação, gestão de clientes/eventos e detecção de conflitos.
+Aplicação web para controle de períodos de indisponibilidade de escala de trabalho com fluxo de aprovação hierárquica, gestão de clientes/eventos, detecção de conflitos em tempo real, métricas de observabilidade e auditoria completa.
+
+---
 
 ## O que a aplicação faz
 
-- **Solicitação de indisponibilidade** — tipo prolongado (mínimo 5 dias úteis) ou pontual (1 dia), com antecedência mínima de 15 dias.
-- **Aprovação hierárquica** — líder do setor aprova pedidos do seu time; admins aprovam qualquer pedido.
-- **Cadastro de clientes** — admins criam clientes e alocam/desalocam usuários a cada um.
-- **Cadastro de eventos** — admins criam eventos com datas e clientes envolvidos.
-- **Alerta de conflito** — quando um usuário alocado a um cliente pede indisponibilidade durante um evento desse cliente, o líder vê banner vermelho na pendência e células destacadas no calendário.
-- **Calendário consolidado** — visão de indisponibilidades aprovadas, pendentes, eventos e conflitos.
-- **Notificações** — sineta na navbar com badge vermelho para novos cadastros e pedidos pendentes.
-- **Gestão de usuários, setores e membros** — admin master.
+- **Solicitação de indisponibilidade** — tipo prolongado (mínimo 5 dias úteis) ou pontual (1 dia), com antecedência mínima de 15 dias e validação de sobreposição no banco.
+- **Aprovação hierárquica** — líder do setor aprova pedidos do seu time (via departamento ou cadeia `report_to`); administradores aprovam qualquer pedido.
+- **Cadastro de clientes e vínculos** — admins criam clientes e alocam/desalocam usuários a cada um.
+- **Cadastro de eventos e clientes envolvidos** — admins criam eventos com intervalos de datas e clientes vinculados.
+- **Detecção de conflitos em tempo real** — quando um usuário alocado a um cliente pede indisponibilidade durante um evento desse cliente, o líder vê banner de alerta na pendência e células destacadas no calendário.
+- **Calendário consolidado** — visão unificada de indisponibilidades aprovadas, pendentes, eventos e conflitos de escala.
+- **Notificações** — sineta na navbar com badge de contagem otimizada para novos cadastros e pedidos pendentes.
+- **Gestão de usuários, setores e membros** — administração completa com permissões granulares por papel.
 - **Dashboard analítico** — dias de indisponibilidade por setor e por mês, taxa de aprovação, tempo médio de aprovação e ranking de conflitos por cliente.
-- **Forecast de capacidade** — projeção de quantas pessoas estarão indisponíveis por semana nas próximas N semanas.
-- **Exportação** — relatório de indisponibilidades e calendário em **CSV, Excel (XLSX) e PDF**.
-- **Cancelamento / retorno antecipado** — admin/líder cancela ou encurta um período aprovado; os dias voltam para a cota e o colaborador é **notificado por e-mail**.
-- **Histórico (auditoria)** — linha do tempo de cada solicitação (criada → editada → aprovada/rejeitada → cancelada/antecipada), com quem fez e quando.
-- **Reset de senha por ticket** — "Esqueci a senha" abre um chamado (resposta neutra, anti-enumeração); o admin vê na aba **Tickets**, define a nova senha e ela é enviada por **e-mail**.
-- **Notificações por e-mail** — disparadas em cancelamento/antecipação e reset de senha (SMTP configurável; sem config, loga em dev).
+- **Forecast de capacidade** — projeção de colaboradores indisponíveis por semana nas próximas N semanas (1 a 26 semanas).
+- **Exportação completa** — relatório de indisponibilidades e calendário em **CSV, Excel (XLSX) e PDF**.
+- **Cancelamento e retorno antecipado** — admin/líder pode cancelar ou encurtar períodos aprovados; os dias voltam para a cota e o colaborador é notificado por e-mail.
+- **Linha do tempo e auditoria** — histórico imutável de cada solicitação (criada → aprovada/rejeitada → cancelada/antecipada), registrando autor e timestamp.
+- **Recuperação de senha segura por tickets** — "Esqueci a senha" cria um chamado com resposta neutra (anti-enumeração de usuários); o admin autoriza no painel e o sistema gera token seguro de uso único (SHA-256, 30 min) enviado por **e-mail**.
+- **Notificações por e-mail** — disparadas via Resend SMTP para redefinição de senha e cancelamentos/antecipações de períodos (com fallback para log em desenvolvimento).
+- **Garantia de não-sobreposição concorrente** — constraint `EXCLUDE USING gist` com extensão `btree_gist` no PostgreSQL impedindo requisições simultâneas sobrepostas.
+- **Otimização de banco com índices compostos** — queries críticas de calendário, validação de sobreposição, paginação e analytics totalmente indexadas.
+- **Métricas e observabilidade** — endpoints Spring Actuator e Prometheus em porta dedicada (`8081`) com logs estruturados em formato ECS.
 - **Documentação interativa da API** — Swagger UI (OpenAPI 3) com autenticação Bearer.
-- **UI responsiva** — navbar vira menu hambúrguer no mobile; tema "liquid glass" (gradiente verde gasolina → azul escuro, vidro fosco).
+- **UI responsiva** — tema "liquid glass" (gradiente verde petróleo e vidro fosco), suporte a telas móveis com menu hambúrguer.
 
-## Papéis
+---
 
-| Papel           | Pode                                          |
-| --------------- | --------------------------------------------- |
-| `admin_master`  | Tudo                                          |
-| `admin_editor`  | Gerenciar clientes, eventos, aprovar pedidos  |
-| `admin_leitor`  | Visualizar                                    |
-| `socio`         | Visualizar tudo                               |
-| `lider`         | Aprovar pedidos do seu setor/subordinados     |
-| `colaborador`   | Solicitar para si                             |
+## Papéis de Acesso
+
+| Papel | Permissões |
+| :--- | :--- |
+| `admin_master` | Acesso irrestrito a todos os módulos, configurações, usuários e aprovações. |
+| `admin_editor` | Gerenciamento de clientes, eventos, setores, membros e resolução de tickets. |
+| `admin_leitor` | Visualização de relatórios, calendário e dashboard sem permissão de alteração. |
+| `socio` | Acesso de leitura executiva completa a relatórios, calendário e analytics. |
+| `lider` | Gestão e aprovação de pedidos dos membros sob sua liderança (`report_to` ou setor). |
+| `colaborador` | Criação e acompanhamento de solicitações de indisponibilidade próprias. |
+
+---
 
 ## Arquitetura
 
 A aplicação é dividida em dois projetos:
 
-- **`backend/`** — API REST em **Java 21 / Spring Boot 4** (Spring Security + JWT, JPA/Hibernate, Flyway). É a única fonte de lógica de negócio e o que fala com o banco (PostgreSQL/Supabase).
-- **`client/`** — front-end **Next.js 16** (App Router). As rotas em `client/app/api/**` são uma camada **BFF/proxy** fina: encaminham `/api/**` para o backend Java, repassando o token. Não há mais lógica de negócio no Next.
+- **`backend/`** — API REST em **Java 21 / Spring Boot 4** (Spring Security + JWT, JPA/Hibernate, Flyway, Actuator, Resend Mail). Centraliza 100% da lógica de negócio, auditoria e persistência no PostgreSQL.
+- **`client/`** — front-end **Next.js 16** (App Router, React 19, Tailwind CSS 4, PrimeReact, Lucide). As rotas em `client/app/api/**` atuam como BFF (Backend for Frontend), repassando as requisições autenticadas ao backend Java.
 
 ```text
-Browser → /api/...  (mesma origem, sem CORS)
-   → client/app/api/**/route.ts   (proxy via client/app/lib/backend.ts)
-      → http://localhost:8080/api/...   (backend Java)
+Navegador → /api/... (Next.js BFF / proxy)
+             ↓
+         http://localhost:8080/api/... (Spring Boot)
+             ↓
+         PostgreSQL (Aiven / Supabase / Local)
 ```
 
-## Stack
+---
 
-**Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security, Mail) · JWT (jjwt) · Flyway · PostgreSQL (Supabase) · springdoc/OpenAPI (Swagger) · Apache POI (Excel) · OpenPDF · Maven
+## Stack Tecnológica
 
-**Front:** Next.js 16 (App Router) · React 19 · TypeScript · PrimeReact · Tailwind 4 · Lucide
+- **Backend:** Java 21 · Spring Boot 4 (Web MVC, Data JPA, Security, Actuator, Mail) · JWT (`jjwt`) · Flyway · PostgreSQL · springdoc/OpenAPI (Swagger) · Apache POI (Excel) · OpenPDF · Micrometer / Prometheus · Maven
+- **Frontend:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · PrimeReact · Lucide Icons
+- **Testes:** JUnit 5 + Mockito + AssertJ (backend) · Jest (frontend)
 
-**Testes:** JUnit 5 + Mockito + AssertJ (backend) · Jest (utilitários de UI no front)
+---
 
 ## Segurança
 
-- **Autenticação JWT** stateless (`Authorization: Bearer`). Senhas com **bcrypt** (custo 10).
-- **Autorização por papel** validada na camada de serviço (admin/líder por setor ou `report_to`).
-- **Rate limit** por IP (10 tentativas / 15 min) + **lockout por conta** após falhas consecutivas, com limpeza agendada.
-- **CORS** com allow-list, **HSTS**, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e HTTPS opcional (`REQUIRE_HTTPS`).
-- **Reset de senha por ticket** — abertura pública com resposta neutra (não revela se a conta existe); só admin resolve.
+- **Autenticação JWT Stateless:** Tokens emitidos com assinatura HMAC-SHA (`Authorization: Bearer <token>`).
+- **Senhas Criptografadas:** Algoritmo `bcrypt` com custo 10 e políticas de complexidade (mínimo 6 caracteres, letras e números).
+- **Proteção contra Força Bruta:** Rate limiting por IP (10 requisições / 15 min) e bloqueio temporário de conta após falhas consecutivas.
+- **Headers HTTP Defensivos:** HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e CORS com allow-list restrita.
+- **Recuperação Anti-Enumeração:** A rota pública de esqueci a senha retorna resposta genérica idêntica independentemente do e-mail existir ou não.
+- **Tokens de Redefinição Temporários:** Tokens aleatórios criptograficamente seguros de 32 bytes codificados em URL Base64, armazenados em hash SHA-256, com expiração de 30 minutos e invalidação imediata após o uso.
 
-## Como rodar
+---
 
-**Pré-requisitos:** Java 21+, Node.js 20+ e um banco PostgreSQL (ex.: Supabase).
+## Banco de Dados & Migrations (Flyway)
 
-### 1. Backend (porta 8080)
+O banco de dados é versionado e gerenciado automaticamente pelo **Flyway** (`backend/src/main/resources/db/migration`):
 
-Crie `backend/.env` (lido automaticamente via spring-dotenv):
+| Migração | Descrição |
+| :--- | :--- |
+| `V1__init.sql` | Criação do schema base: tabelas `members`, `users5`, `clientes`, `eventos`, `unavailability`, `user_clientes` e `evento_clientes`. |
+| `V2__seed_admin_master.sql` | Inicialização controlada do primeiro usuário administrador master. |
+| `V3__unavailability_audit.sql` | Tabela de auditoria e histórico de ciclo de vida das solicitações. |
+| `V4__password_tickets.sql` | Tabela de tickets de recuperação de senha por aprovação administrativa. |
+| `V5__notification_count_indexes.sql` | Índices para contagem rápida de notificações de pendências. |
+| `V6__analytics_indexes.sql` | Índices cobrindo agrupamentos e filtros do dashboard analítico. |
+| `V7__password_reset_token.sql` | Campos `token_hash`, `token_expires_at` e `token_used_at` com índice único seguro. |
+| `V8__unavailability_no_overlap.sql` | Extensão `btree_gist` e restrição de exclusão impedindo sobreposições concorrentes no banco. |
+| `V9__composite_indexes.sql` | Índices compostos estratégicos para `unavailability(status, start_date, end_date)`, `unavailability(user_id, status)`, `unavailability(created_at DESC)`, `members(report_to)` e `eventos(data_inicio, data_fim)`. |
+
+---
+
+## Como Rodar o Projeto
+
+### Pré-requisitos
+- **Java 21** e **Maven** (ou use o wrapper `./mvnw` incluso)
+- **Node.js 20+** e **npm**
+- Instância do **PostgreSQL** ativa (Aiven Cloud, Supabase ou local)
+
+---
+
+### 1. Configurando o Backend
+
+Crie o arquivo `backend/.env` com as configurações do ambiente:
 
 ```env
-# Conexão JDBC (Session Pooler do Supabase: Connect → JDBC → Session pooler)
-SPRING_DATASOURCE_URL=jdbc:postgresql://<host-pooler>:5432/postgres?sslmode=require
-SUPABASE_DB_USER=postgres.<project-ref>
-SUPABASE_DB_PASSWORD=<senha-do-banco>
-SUPABASE_SCHEMA=unavaliability
-SESSION_SECRET=<string-aleatoria-de-32-ou-mais-caracteres>
+# Banco de Dados PostgreSQL (ex: Aiven Cloud)
+SPRING_DATASOURCE_URL=jdbc:postgresql://<host>:<porta>/<database>?sslmode=require
+DB_USERNAME=<usuario>
+DB_PASSWORD=<senha>
+DB_SCHEMA=unavaliability
+SPRING_DATASOURCE_POOL_SIZE=5
 
-# E-mail (opcional). Sem MAIL_HOST/MAIL_FROM, as notificações são apenas logadas (dev).
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=<seu-email>
-MAIL_PASSWORD=<app-password>
-MAIL_FROM=<seu-email>
+# Segurança JWT
+SESSION_SECRET=<chave-secreta-de-pelo-menos-32-caracteres>
+
+# E-mail (Resend SMTP)
+RESEND_HOST=smtp.resend.com
+RESEND_PORT=587
+RESEND_USER=resend
+RESEND_API_KEY=re_sua_api_key_aqui
+RESEND_FROM=onboarding@resend.dev  # Em produção: seu-email@seu-dominio-verificado.com
+
+# Administrador Inicial
+ADMIN_EMAIL=admin@empresa.com
+ADMIN_PASSWORD=SenhaForte123
+INITIAL_ADMIN_NAME=Admin Master
+
+# URL do Frontend (para links de redefinição de senha)
+APP_FRONTEND_URL=http://localhost:3000
 ```
 
-```bash
+Para iniciar o backend:
+
+```powershell
 cd backend
 ./mvnw spring-boot:run
 ```
 
-No primeiro boot o **Flyway** aplica as migrations em `src/main/resources/db/migration`:
-`V1` cria o schema e as tabelas; `V2` insere o admin master inicial; `V3` cria a auditoria de solicitações; `V4` cria os tickets de senha.
+- A API estará disponível em: `http://localhost:8080`
+- Documentação interativa (Swagger UI): `http://localhost:8080/swagger-ui.html`
+- Métricas Actuator/Prometheus: `http://localhost:8081/actuator/prometheus`
 
-Com o backend no ar, a documentação interativa fica em **`http://localhost:8080/swagger-ui.html`** (OpenAPI JSON em `/v3/api-docs`). Use o botão **Authorize** com o token obtido em `/api/auth/login`.
+---
 
-### 2. Front (porta 3000)
+### 2. Configurando o Frontend
 
-`client/.env.local` aponta para o backend (default já configurado):
+Crie o arquivo `client/.env.local`:
 
 ```env
 BACKEND_API_URL=http://localhost:8080
 ```
 
-```bash
+Instale as dependências e inicie o servidor Next.js:
+
+```powershell
 cd client
 npm install
-npm run dev                  # dev em http://localhost:3000
-npm run build && npm start   # produção
-npm test                     # testes (utilitários de UI)
+npm run dev
 ```
 
-### Conta inicial (seed da migration V2)
+Acesse o sistema no navegador em: **`http://localhost:3000`**
 
-| Email              | Senha      | Papel          |
-| ------------------ | ---------- | -------------- |
-| `criar email de admin` | `criar senha de admin` | `admin_master` |
+---
 
-> Troque a senha após o primeiro acesso.
+## Endpoints Notáveis da API
 
-## Estrutura
+### Autenticação & Recuperação de Senha
+| Método | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Login com e-mail e senha, retornando token JWT e perfil do usuário. |
+| `POST` | `/api/auth/register` | Auto-cadastro de novos colaboradores (requer aprovação posterior de admin). |
+| `GET` | `/api/auth/me` | Retorna os dados do usuário autenticado atual. |
+| `POST` | `/api/auth/forgot-password` | Público. Abre chamado de recuperação de senha com resposta neutra. |
+| `GET` | `/api/admin/tickets?onlyOpen=` | Restrito a admins. Lista os tickets de redefinição pendentes. |
+| `POST` | `/api/admin/tickets/{id}/resolve` | Restrito a admins. Gera token seguro e envia o link de redefinição por e-mail. |
+| `POST` | `/api/auth/reset-password` | Público. Recebe o token do link e a nova senha para redefinição. |
 
-```text
-backend/                         # API Java / Spring Boot
-  src/main/java/com/unavaliability/backend/
-    models/        # entidades JPA (User, Member, Cliente, Evento, Unavailability, junções)
-    repositories/  # Spring Data JPA
-    service/       # regras de negócio: Auth, Unavailability, Analytics, Export, etc.
-    controllers/   # REST controllers (espelham /api/**) + Analytics/Export/Health
-    dto/           # records de request/response (com Bean Validation)
-    security/      # JWT, filtro, roles, UserDetails
-    config/        # SecurityConfig (CORS/headers/HTTPS) + OpenApiConfig (Swagger)
-    util/          # BusinessDays, TextUtils
-    exception/     # ApiException + handler global
-  src/main/resources/
-    application.yml
-    db/migration/  # V1 schema · V2 seed admin · V3 auditoria · V4 tickets de senha
-  src/test/java/   # JUnit 5 + Mockito (services e utils)
+### Indisponibilidades & Auditoria
+| Método | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| `GET` | `/api/unavailability` | Lista indisponibilidades com filtros por status, setor e data. |
+| `POST` | `/api/unavailability` | Cria nova solicitação com validação de dias úteis e conflitos. |
+| `POST` | `/api/unavailability/{id}/approve` | Aprovação hierárquica por líder ou admin. |
+| `POST` | `/api/unavailability/{id}/reject` | Rejeição de solicitação informando justificativa. |
+| `POST` | `/api/unavailability/{id}/cancel` | Cancela ou antecipa retorno (`{ "new_end_date": "YYYY-MM-DD" }`) com notificação por e-mail. |
+| `GET` | `/api/unavailability/{id}/history` | Linha do tempo completa (auditoria) da solicitação. |
 
-client/                          # Front-end Next.js
-  app/
-    (pages)/       # UI: admin (users/setores/members/clientes/eventos), unavailability, login, register
-                   #   cada página grande tem _components/ com seus subcomponentes
-    api/           # BFF: proxies que repassam /api/** ao backend Java
-    components/    # Navbar, NotificationBell, UnavailForm, UnavailCalendar, etc.
-    lib/           # api-client (JWT), backend (proxy), client-config, ui-utils
-  middleware.ts    # proteção de rotas server-side (redireciona sem token)
-  test/            # testes de utilitários de UI (Jest)
+### Analytics & Exportações
+| Método | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| `GET` | `/api/analytics/dashboard?de=&ate=` | Indicadores de dias por setor, aprovações e conflitos. |
+| `GET` | `/api/analytics/forecast?semanas=8` | Projeção semanal de pessoas ausentes. |
+| `GET` | `/api/export/relatorio?formato=csv\|xlsx\|pdf` | Exporta relatório gerencial de solicitações. |
+| `GET` | `/api/export/calendario?formato=csv\|xlsx\|pdf` | Exporta grade de calendário ativa formatada. |
+
+---
+
+## Executando os Testes
+
+```powershell
+# Testes do Backend (JUnit 5 + Mockito + Migrations)
+cd backend
+./mvnw test
+
+# Testes do Frontend (Jest)
+cd client
+npm test
 ```
 
-## Regras de negócio
+---
 
-- Indisponibilidade `prolongado` exige mínimo **5 dias úteis**.
-- Data de início ≥ **hoje + 15 dias**.
-- Sem sobreposição com pedidos próprios pendentes/aprovados.
-- Cota anual de dias resetada por ano civil.
-- `admin_master` pode aprovar a própria solicitação; demais não.
-- Só pedidos **aprovados** podem ser cancelados/antecipados (admin/líder); a nova data de retorno deve ser anterior ao fim atual e recalcula os dias úteis.
+## Executando com Docker Compose
 
-## API — endpoints notáveis
+Para subir toda a infraestrutura com um único comando:
 
-Analytics & exportação (restritos a admins / sócio):
-
-| Método | Rota | Descrição |
-| ------ | ---- | --------- |
-| `GET` | `/api/analytics/dashboard?de=&ate=` | Dias por setor/mês, taxa de aprovação, tempo médio de aprovação, ranking de conflitos (sem datas: do início do ano até hoje). |
-| `GET` | `/api/analytics/forecast?semanas=8` | Projeção de pessoas indisponíveis por semana (1–26 semanas). |
-| `GET` | `/api/export/relatorio?formato=csv\|xlsx\|pdf` | Exporta o relatório de indisponibilidades. |
-| `GET` | `/api/export/calendario?formato=csv\|xlsx\|pdf` | Exporta o calendário de indisponibilidades ativas. |
-
-Solicitações & tickets:
-
-| Método | Rota | Descrição |
-| ------ | ---- | --------- |
-| `POST` | `/api/unavailability/{id}/cancel` | Cancela (corpo vazio) ou antecipa o retorno (`{ "new_end_date": "YYYY-MM-DD" }`). Admin/líder; notifica o dono por e-mail. |
-| `GET` | `/api/unavailability/{id}/history` | Linha do tempo (auditoria) da solicitação. |
-| `POST` | `/api/auth/forgot-password` | Público. Abre ticket de redefinição (resposta neutra). |
-| `GET` | `/api/admin/tickets?onlyOpen=` | Lista tickets de senha (admin). |
-| `POST` | `/api/admin/tickets/{id}/resolve` | Define a nova senha e envia por e-mail (admin). |
-
-## Docker
-
-### Pré-requisitos
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
-- Arquivo `backend/.env` criado conforme a seção **Como rodar → Backend** acima.
-
-### Subindo o ambiente
-
-```bash
+```powershell
 docker compose up --build
 ```
 
-Isso constrói as imagens e sobe dois contêineres:
-
-| Serviço | Porta | Descrição |
-| ------- | ----- | --------- |
-| `backend` | `8080` | API Java / Spring Boot |
-| `frontend` | `3000` | Next.js |
-
-O frontend só sobe após o backend passar no healthcheck (`GET /api/health`), então aguarde alguns segundos na primeira vez.
-
-Acesse a aplicação em **`http://localhost:3000`**.
-
-### Parar / derrubar
-
-```bash
-docker compose down          # para e remove os contêineres
-docker compose down -v       # idem + remove volumes
-```
-
-### Variáveis de ambiente em produção
-
-O `docker-compose.yml` injeta automaticamente `BACKEND_API_URL=http://backend:8080` no frontend (comunicação interna Docker). Não é necessário configurar nada extra além do `backend/.env`.
-
-Para sobrescrever portas ou variáveis, use um arquivo `docker-compose.override.yml` ou passe via linha de comando:
-
-```bash
-BACKEND_API_URL=http://meu-backend:8080 docker compose up
-```
-
-### Builds individuais
-
-Se preferir construir as imagens separadamente:
-
-```bash
-# Backend
-docker build -t unavail-backend ./backend
-
-# Frontend
-docker build -t unavail-frontend ./client
-```
-
-Cada Dockerfile usa **multi-stage build**: apenas o artefato final (JAR no backend; build standalone do Next.js no frontend) entra na imagem de runtime, mantendo as imagens enxutas.
-
-## Testes
-
-```bash
-cd backend && ./mvnw test    
-cd client && npm test        
-```
-
-Cobertura de backend inclui: cálculo de dias úteis, validação/regra de criação de indisponibilidade, permissões de papel, rate limit + lockout de login e parse de `report_to`. Os testes de serviço usam mocks dos repositórios (não exigem banco).
-
-## Migrations
-
-O schema é versionado com **Flyway** em `backend/src/main/resources/db/migration`. Para alterar o banco, crie um novo arquivo `V<n>__descricao.sql` — nunca edite uma migration já aplicada (o Flyway valida o checksum).
+O compose inicializa os contêineres do backend (porta 8080) e frontend (porta 3000) com verificações de healthcheck integradas.
